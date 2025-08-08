@@ -1,0 +1,112 @@
+[
+    {
+      "id": "do_you_know_hp",
+      "text": "Do you know what Hp means?",
+      "options": [
+        {
+          "text": "Hit point",
+          "condition": "always",
+          "effect": [
+            { "action": "update_stats", "stats": { "hp": 5 },"mode":"add"},
+            { "action": "message", "text": "You are correct! Hit point +5." }
+          ]
+        },
+        {
+            "text": "Health Point!",
+            "condition": "always",
+            "effect": [
+              { "action": "update_stats", "stats": { "sp": 5 } ,"mode":"add"},
+              { "action": "message", "text": "Think twice." }
+            ]
+        },
+        {
+          "text": "Happy Point!",
+          "condition": "always",
+          "effect": [
+            { "action": "update_stats", "stats": { "sp": 5 } ,"mode":"add"},
+            { "action": "message", "text": "Optimism makes you stronger." }
+          ]
+        },
+        {
+          "text": "H(Ecchi)-Power!",
+          "condition": "always",
+          "effect": [
+            { "action": "heal", "amount": 10 },
+            { "action": "update_stats", "stats": { "sp": 5 } ,"mode":"add"},
+            { "action": "message", "text": "Your perviness fuels your vitality. You feel better!" }
+          ]
+        },
+        {
+            "text": "Hentai Progress!",
+            "condition": "player.current_stats()['U'] < 15 and player.current_stats()['I'] < 15",
+            "effect": [
+              { "action": "heal", "amount": 100 },
+              { "action": "update_stats", "stats": { "sp": 5 } ,"mode":"add"},
+              { "action": "message", "text": "Hentai is always a virtue!" }
+            ]
+        },
+        {
+            "text": "Human Polygon!",
+            "condition": "player.current_stats()['I'] > 20",
+            "effect": [
+              { "action": "update_stats", "stats": { "sp": -10 } ,"mode":"add"},
+              { "action": "message", "text": "You are close to Truth!" }
+            ]
+        }
+      ]
+    },
+  
+    {
+      "id": "virus_attack",
+      "text": "Your PC is under attack!",
+      "options": [
+        {"text": "QAQ","condition": "always","effect": [{ "action": "message", "text": "You promise not to download galgames again." }]},
+        {"text": "Hack","condition": "always","effect": [{ "action": "message", "text": "You promise not to download galgames again." }]},
+        {"text": "Reboot","condition": "always","effect": [{ "action": "message", "text": "Reboot is not always a solution." }]},
+        {"text": "Download 360","condition": "always","effect": [{ "action": "message", "text": "360 itself has become a virus." }]}
+          ]
+    },
+    {
+        "id": "cat_meaning",
+        "text": "What does the 'cat' represent in the modern age??",
+        "options": [
+            {"text": "The final evolutionary form of the influencer.", "condition": "always", "effect": { "action": "message", "text": "Interesting choice." }},
+            {"text": "Neko!", "condition": "always", "effect": [{ "action": "message", "text": "" },{ "action": "add_item", "item": "Cat Ear" }]},
+            {"text": "Kawaii creature in anime and video game!", "condition":"always", "effect":[{ "action": "message", "text": "Kawaii" },{ "action": "update_stats", "stats": { "sp": 10 } ,"mode":"add"}]},
+            {"text": "Sexy Cat Girls!", "condition": "always", "effect": [{ "action": "message", "text": "Your choice earns you a chance." },{ "action": "trigger_event", "id": "free_trial" }]},
+            {"text": "Animals that can get drunk from licking their fur.", "condition": "always", "effect": { "action": "message", "text": "Interesting choice." }},
+            {"text": "A state-sponsored mascot of passive narcissism.", "condition": "always", "effect": { "action": "message", "text": "Interesting choice." }},
+            {"text": "Independent thinking and elegant rebellion.", "condition": "always", "effect": { "action": "message", "text": "Interesting choice." }}
+        ]
+    },
+    {
+        "id": "animal_lover",
+        "text": "Churchill believes: Dogs look up to us. Cats look down on us. Pigs treat us as equals. Which one do you agree with?",
+        "options": [
+            {"text": "Pigs.", "condition": "always", "effect": [{ "action": "message", "text": "Interesting choice." }]},
+            {"text": "Cats.", "condition": "always", "effect": [{ "action": "message", "text": "It seems you are a cat lover." },{ "action": "trigger_event", "id": "cat_meaning" }]},
+            {"text": "Neko!", "condition": "always", "effect": [{ "action": "message", "text": "Neko is cute!" },{ "action": "trigger_event", "id": "cat_meaning" }]},
+            {"text": "Dogs.", "condition": "always", "effect": [{ "action": "message", "text": "Interesting choice." }]}
+        ]
+    },
+    {
+        "id": "free_trial",
+        "text": "You gain a chance to try a free trial of our latest Neko-GirlFriend. Do you want to try it?",
+        "options": [
+            {"text": "Yes.", "condition": "always", "effect": [{ "action": "message", "text": "It seems you own a cat lover.Have a try!" },{ "action": "trigger_event", "id": "anime_scene" }]},
+            {"text": "Thanks,but not today.", "condition": "always", "effect": { "action": "message", "text": "What a pity." }},
+            {"text": "I'll pay for it now.", "condition": "always", "effect": [{ "action": "message", "text": "It seems you own a cat lover.Have a try!" },{ "action": "add_item", "item": "Neko Lover" }]}
+        ]
+    },
+    {
+        "id": "anime_scene",
+        "text": "Cat Girl:お風呂にする？ ご飯にする？ それとも……わ・た・し？",
+        "options": [
+            {"text": "Take a bath", "condition": "always", "effect": [{ "action": "heal", "amount": 10 },{ "action": "message", "text": "Thats a nice bath" }]},
+            {"text": "Have a meal.", "condition": "always", "effect":[{ "action": "update_stats", "stats": { "D": 1 } ,"mode":"add"},{ "action": "message", "text": "Thats a nice meal" }]},
+            {"text": "H!", "condition": "always", "effect":[{ "action": "heal", "amount": 50 },{ "action": "message", "text": "A strange feeling." },{ "action": "update_stats", "stats": { "D": -2 },"mode":"add"}]}
+
+        ]
+    }
+  ]
+  
