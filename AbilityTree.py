@@ -1,94 +1,78 @@
 import pygame
 from font_manager import get_font
 from colors import *
-import json
 from Stupid import Toolbar,Tab
+import time
 
 
 # 科技节点类
-class Technode:
-    def __init__(self, name, x, y, description="", prerequisites=None, level=1, skills=None, research_time=1.0):
+class BaseNode:
+    def __init__(self, name, x, y, description="", prerequisites=None, width=105, height=30):
         self.name = name
         self.description = description
         self.x = x
         self.y = y
-        self.width = 100
-        self.height = 30
-        self.rect = pygame.Rect(x - self.width//2, y - self.height//2, self.width, self.height)
+        self.width = width
+        self.height = height
+        self.rect = pygame.Rect(x - width//2, y - height//2, width, height)
+
         self.prerequisites = prerequisites or []
-        self.level = level
-        self.research_time = research_time  # 研究所需时间（秒）
         self.is_unlocked = False
-        self.is_researched = False
         self.is_hovered = False
-        self.is_researching = False
-        self.research_progress = 0.0  # 研究进度 0.0-1.0
+
         self.press_start_time = 0
-        self.skills = skills or []  # 支持多个技能
-        self.learned_skills = set()
+        self.is_pressing = False
+        self.research_time = 1.0  # 默认研究时间（秒）
+        self.is_researched = False
+        self.is_researching = False
+        self.research_progress = 0.0
+
+    def is_mouse_over(self, pos):
+        return self.rect.collidepoint(pos)
+
+    def start_press(self):
+        self.press_start_time = time.time()
+        self.is_pressing = True
+
+    def update_press(self):
+        if self.is_pressing:
+            duration = time.time() - self.press_start_time
+            return duration
+        return 0
+
+    def release_press(self):
+        self.is_pressing = False
         
-    def draw(self, screen, small_font):
+    def draw(self, screen , font):
+        bg_color = BLACK
         # 根据状态选择颜色
         if self.is_researched:
-            bg_color = BLACK
-            border_color = GREEN
-            text_color = GREEN
+            text_color = BLACK
+            bg_color = WHITE
         elif self.is_unlocked:
-            bg_color = BLACK
-            border_color = WHITE
             text_color = WHITE
         else:
-            bg_color = BLACK
-            border_color = GRAY
             text_color = GRAY
             
         # 悬停效果
         if self.is_hovered and self.is_unlocked and not self.is_researched:
-            bg_color = tuple(min(255, c + 20) for c in bg_color)
+            bg_color = (50,50,50)
             
-        # 绘制节点背景（矩形，类似缺氧风格）
-        shadow_rect = pygame.Rect(self.rect.x + 3, self.rect.y + 3, self.rect.width, self.rect.height)
-        pygame.draw.rect(screen, SHADOW, shadow_rect)
+            
+        # 绘制节点背景
         pygame.draw.rect(screen, bg_color, self.rect)
-        pygame.draw.rect(screen, border_color, self.rect, 3)
+        pygame.draw.rect(screen, text_color, self.rect, 2)# 边框
         
         # 绘制研究进度条（如果正在研究）
-        if self.is_researching and self.research_progress > 0:
-            progress_rect = pygame.Rect(self.rect.x + 5, self.rect.bottom - 10, 
-                                      int((self.rect.width - 10) * self.research_progress), 5)
-            pygame.draw.rect(screen, WHITE, progress_rect)
-            pygame.draw.rect(screen, WHITE, 
-                           (self.rect.x + 5, self.rect.bottom - 10, self.rect.width - 10, 5), 1)
-        
-        # 绘制科技名称（分行显示）
-        words = self.name.split()
-        lines = []
-        current_line = ""
-        for word in words:
-            test_line = current_line + word + " "
-            if small_font.size(test_line)[0] < self.width - 10:
-                current_line = test_line
-            else:
-                if current_line:
-                    lines.append(current_line.strip())
-                current_line = word + " "
-        if current_line:
-            lines.append(current_line.strip())
-            
-        # 居中显示文本
-        total_height = len(lines) * 16
-        start_y = self.y - total_height // 2
-        
-        for i, line in enumerate(lines):
-            text_surface = small_font.render(line, True, text_color)
-            text_rect = text_surface.get_rect(center=(self.x, start_y + i * 16 + 5))
-            screen.blit(text_surface, text_rect)
-            
-        # # 绘制等级指示器（右上角）
-        # level_text = f"L{self.level}"
-        # level_surface = small_font.render(level_text, True, text_color)
-        # screen.blit(level_surface, (self.rect.right - 25, self.rect.top + 3))
+        if self.is_researching and self.research_progress > 0.05:
+            progress_rect = pygame.Rect(self.rect.x, self.rect.bottom, 
+                                      int(self.rect.width* self.research_progress), 5)
+            pygame.draw.rect(screen, GRAY, progress_rect)
 
+        label = font.render(self.name, True, text_color)
+        screen.blit(label, (self.rect.centerx - label.get_width()//2,
+                            self.rect.centery - label.get_height()//2))
+            
         
     def contains_point(self, pos):
         return self.rect.collidepoint(pos)
@@ -121,11 +105,34 @@ class Technode:
         self.is_researching = False
         self.research_progress = 0.0
 
+
+class TechNode(BaseNode):
+    def __init__(self, name, x, y, description="", prerequisites=None, level=1, skills=None):
+        super().__init__(name, x, y, description, prerequisites)
+        self.level = level
+        self.skills = skills or []
+        self.learned_skills = set()
+
+class LanguageNode(BaseNode):
+    def __init__(self, name, x, y, description="", prerequisites=None, skills=None):
+        super().__init__(name, x, y, description, prerequisites)
+        self.skills = skills or []
+
+
+
 # 科技树类
-class AbilityTree:
+class TechTree:
     def __init__(self):
-        self.nodes = {}
-        self.connections = []
+        self.nodes = {
+            "tech": {},   # 科技树节点
+            "lang": {},   # 语言树节点
+            "algo": {}    # 算法树节点
+        }
+        self.connections = {
+            "tech": [],
+            "lang": [],
+            "algo": []
+        }
         self.researched = set()
         self.selected_node = None
         self.mouse_pressed = False
@@ -133,7 +140,20 @@ class AbilityTree:
         self.learned_skills = set()
         self.skill_points = 0  # 可手动设置初始点数
         self.setup_Ability_tree("tech", tech_levels)
-        self.setup_Ability_tree("language", language_levels)
+        self.setup_Ability_tree("lang", lang_levels,["C","Utility"])
+
+        # # 在 AbilityTree 或 LanguageTree 类中维护独立数据
+        # self.language_nodes = {}
+        # self.language_connections = []
+
+        # # 创建节点（LanguageNode 继承 BaseNode）
+        # self.language_nodes["Python"] = LanguageNode("Python", 100, 100, "快速开发语言")
+        # self.language_nodes["C"] = LanguageNode("C", 100, 200, "系统级语言")
+        # self.language_nodes["C++"] = LanguageNode("C++", 250, 250, "面向对象")
+
+        # # 添加连接关系
+        # self.language_connections.append(("C", "C++"))
+
         self.tabs = Toolbar.create_tabs(self,
             names=[ "Tech","Lang","Algo","Skill"],
             start_pos=(SCREEN_WIDTH -250 , 50),
@@ -144,49 +164,66 @@ class AbilityTree:
         for tab in self.tabs:
             if tab.is_active:
                 return tab.name.lower()  # tech / skill / lang / ml
-        return None
+        return "tech"
         
-    def setup_Ability_tree(self,name,Ability_levels):
-        # 按等级分列的科技树设计
-        COLUMN_WIDTH = 130
-        START_X = 80
-        START_Y = 80
-        ROW_HEIGHT = 80
+    def setup_Ability_tree(self, tree_type, ability_levels,initial_unlock=None):
+        # 确保容器存在
+        if tree_type not in self.nodes:
+            self.nodes[tree_type] = {}
+            self.connections[tree_type] = []
 
         # 创建节点
-        for level, Abilitys in Ability_levels.items():
-            x = START_X + (level - 1) * COLUMN_WIDTH
-            for name, row_pos, desc, prereqs,skills in Abilitys:
-                y = START_Y + int(row_pos * ROW_HEIGHT)
-                self.nodes[name] = Technode(name, x, y, desc, prereqs, level,skills)
-                
+        for level, abilities in ability_levels.items():
+            for ability in abilities:
+                if tree_type == "tech":
+                    name, row_pos, desc, prereqs, skills = ability
+                    x = 80 + (level - 1) * 130
+                    y = 80 + int(row_pos * 80)
+                    node = TechNode(name, x, y, desc, prereqs, level, skills)
+                elif tree_type == "lang":
+                    name, x, y, desc, prereqs, skills = ability
+                    node = LanguageNode(name, x, y, desc, prereqs, skills)
+                # elif tree_type == "algo":
+                #     name, x, y, desc, prereqs, skills = ability
+                #     node = AlgorithmNode(name, x, y, desc, prereqs, skills)
+                else:
+                    raise ValueError(f"未知的树类型: {tree_type}")
+
+                self.nodes[tree_type][name] = node
+
         # 设置连接关系
-        for node_name, node in self.nodes.items():
+        for node_name, node in self.nodes[tree_type].items():
             for prereq in node.prerequisites:
-                if prereq in self.nodes:
-                    self.connections.append((prereq, node_name))
-                    
-        # 初始解锁第一级科技
-        for node_name, node in self.nodes.items():
-            if node.level == 1:
+                if prereq in self.nodes[tree_type]:
+                    self.connections[tree_type].append((prereq, node_name))
+
+        # 初始解锁第一级（只对有 level 属性的节点有效）
+        for node in self.nodes[tree_type].values():
+            if hasattr(node, "level") and node.level == 1:
                 node.is_unlocked = True
+
+            # 初始解锁
+        if initial_unlock:
+            for name in initial_unlock:
+                if name in self.nodes[tree_type]:
+                    self.nodes[tree_type][name].is_unlocked = True
+
                 
     def draw_tech_tree(self, screen, font, small_font):
+        level_font = get_font("en", "Time", 20)
         # 绘制等级分隔线和标题
         for level in range(1, 7):
             x = 80 + (level - 1) * 130
-            # 绘制分隔线
-            pygame.draw.line(screen, GRAY, (x - 50, 30), (x - 50, 320), 1)
             # 绘制等级标题
-            level_title = f"Level {level}"
-            title_surface = small_font.render(level_title, True, WHITE)
+            level_title = f"Lv {level}"
+            title_surface = level_font.render(level_title, True, WHITE)
             title_rect = title_surface.get_rect(center=(x, 40))
             screen.blit(title_surface, title_rect)
         
         # 绘制连接线
-        for start_name, end_name in self.connections:
-            start_node = self.nodes[start_name]
-            end_node = self.nodes[end_name]
+        for start_name, end_name in self.connections["tech"]:
+            start_node = self.nodes["tech"][start_name]
+            end_node = self.nodes["tech"][end_name]
             
             # 选择线条颜色和样式
             if start_node.is_researched and end_node.is_unlocked:
@@ -229,23 +266,55 @@ class AbilityTree:
                                       [(end_x, end_y), (wing1_x, wing1_y), (wing2_x, wing2_y)])
                                      
         # 绘制所有节点
-        for node in self.nodes.values():
+        for node in self.nodes["tech"].values():
             node.draw(screen, small_font)
             
         # 绘制选中节点的详细信息
         if self.selected_node:
             self.draw_node_info(screen ,font, small_font)
 
+    def draw_language_tree(self,screen, font, small_font):
+        # image = load_image('assets/sp.png', (170,170))
+        # screen.blit(image, (800,400))
+
+        # 绘制连接线
+        for start_name, end_name in self.connections["lang"]:
+            start_node = self.nodes["lang"][start_name]
+            end_node = self.nodes["lang"][end_name]
+            
+            # 选择线条颜色和样式
+            if start_node.is_researched and end_node.is_unlocked:
+                line_color = WHITE
+                line_width = 3
+            elif start_node.is_researched:
+                line_color = GRAY  
+                line_width = 2
+            else:
+                line_color = SHADOW
+                line_width = 1
+            
+            pygame.draw.line(screen, line_color, start_node.rect.center, end_node.rect.center, line_width)
+
+        # 再绘制节点
+        for node in self.nodes["lang"].values():
+            node.draw(screen, small_font)
+
+                # 绘制选中节点的详细信息
+        if self.selected_node:
+            self.draw_node_info(screen ,font, small_font)
+            
+        
     def draw(self, screen, font, small_font):
         icon_font = get_font("en", "Cogmind", 20)
         Toolbar.draw_tab_border(self, screen, icon_font, self.tabs)
+        DOS_20= get_font("en", "DOS", 16)
 
         subview = self.get_active_tab_name()
 
         if subview == "skill":
             self.draw_skill_view(screen, font, small_font)
-        elif subview == "language":
-            self.draw_tech_tree(screen, font, small_font)
+        elif subview == "lang":
+            self.draw_language_tree(screen, font, small_font)
         elif subview == "ml":
             self.draw_tech_tree(screen, font, small_font)
         else:
@@ -269,13 +338,13 @@ class AbilityTree:
         
         # 状态信息
         if node.is_researched:
-            status = "finished"
+            status = "- finished"
         elif node.is_researching:
-            status = f"researching..{int(node.research_progress * 100)}%"
+            status = f"- researching..{int(node.research_progress * 100)}%"
         elif node.is_unlocked:
-            status = "available"
+            status = "- available"
         else:
-            status = "locked"
+            status = "- locked"
 
         
         # 节点名称
@@ -287,31 +356,10 @@ class AbilityTree:
         screen.blit(status_surface, (info_x + 10 + name_width + 10, y_offset))
         y_offset += 30
         
-        # 等级和研究时间
-        level_text = f"等级: {node.level}  研究: {node.research_time}s"
-        level_surface = small_font.render(level_text, True, WHITE)
-        screen.blit(level_surface, (info_x + 10, y_offset))
-        y_offset += 25
-        
-        # 分行显示描述
-        words = node.description.split()
-        lines = []
-        current_line = ""
-        for word in words:
-            test_line = current_line + word + " "
-            if small_font.size(test_line)[0] < info_width - 20:
-                current_line = test_line
-            else:
-                if current_line:
-                    lines.append(current_line.strip())
-                current_line = word + " "
-        if current_line:
-            lines.append(current_line.strip())
-            
-        for line in lines[:3]:  # 最多显示3行
-            desc_line_surface = small_font.render(line, True, WHITE)
-            screen.blit(desc_line_surface, (info_x + 10, y_offset))
-            y_offset += 18
+        # 描述信息
+        desc_line_surface = small_font.render(node.description, True, WHITE)
+        screen.blit(desc_line_surface, (info_x + 10, y_offset))
+        y_offset += 18
             
         # 前置需求
         if node.prerequisites:
@@ -374,6 +422,9 @@ class AbilityTree:
             y += 30
                 
     def handle_event(self, player, event):
+
+        tree_type = self.get_active_tab_name()
+
         # 1. ESC 返回上一级或关闭标签
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             # 如果当前不是 Tech，切回 Tech
@@ -389,7 +440,7 @@ class AbilityTree:
 
         # 2. 鼠标移动：更新悬停状态
         elif event.type == pygame.MOUSEMOTION:
-            for node in self.nodes.values():
+            for node in self.nodes[tree_type].values():
                 node.is_hovered = node.contains_point(event.pos)
 
         # 3. 鼠标点击：切换 tab
@@ -399,33 +450,16 @@ class AbilityTree:
                     for other_tab in self.tabs:
                         other_tab.is_active = (other_tab == tab)
                     return True
-
-            active_view = self.get_active_tab_name()
-
-            if active_view == "skill":
-                # 点击技能学习
-                for node in self.nodes.values():
-                    if node.is_researched and node.skills:
-                        for skill in node.skills:
-                            rect = getattr(self, f"skill_rect_{skill}", None)
-                            if rect and rect.collidepoint(event.pos):
-                                if skill not in self.learned_skills and self.skill_points > 0:
-                                    self.learned_skills.add(skill)
-                                    self.skill_points -= 1
-                                    print(f"学习技能：{skill}")
-                                    player.apply_skill_effect(player, skill)
-                                return True
-
-            else:
-                # tech / lang / ml 模式通用
-                for node in self.nodes.values():
-                    if node.contains_point(event.pos):
-                        self.selected_node = node
-                        if node.can_unlock(self.researched) and node.is_unlocked:
-                            self.pressed_node = node
-                            node.start_research()
-                        break
-                self.mouse_pressed = True
+                
+            # tech / lang / ml 模式通用
+            for node in self.nodes[tree_type].values():
+                if node.contains_point(event.pos):
+                    self.selected_node = node
+                    if node.can_unlock(self.researched) and node.is_unlocked:
+                        self.pressed_node = node
+                        node.start_research()
+                    break
+            self.mouse_pressed = True
 
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             self.mouse_pressed = False
@@ -451,8 +485,9 @@ class AbilityTree:
                 self.skill_points+=1  # 每完成一个科技，获得1点技能点
                 
     def update_unlocked_nodes(self):
+        tree_type = self.get_active_tab_name()
         """更新可解锁的节点状态"""
-        for node in self.nodes.values():
+        for node in self.nodes[tree_type].values():
             if not node.is_unlocked and node.can_unlock(self.researched):
                 node.is_unlocked = True
 
@@ -460,54 +495,103 @@ class AbilityTree:
 # 定义每级科技 (名称, 行位置, 描述, 前置需求 , 技能)
 tech_levels = {
     1: [  # 第一列 - 基础课程
-        ("高级语言程序设计", 0, "你终于学会了如何向世界说出 Hello, world！（解锁编程交互）副作用：开始把生活当成命令行。", [],["Hello world","C++"]),
+        ("高级语言程设", 0, "你终于学会了如何向世界说出 Hello, world！（解锁编程交互）副作用：开始把生活当成命令行。", [],["Hello world","C++"]),
         ("计算机导论", 1, "你大致了解计算机的组成与职业前景。副作用：成为'天选打螺丝的人'。", [], []),
         ("线性代数", 2, "逻辑能力+1，但你开始用真值表分析社交。", [], ["Matrix"]),
         ("高等数学", 2.5, "你能处理复杂计算，但开始怀疑微积分的实际意义。", [], ["Calculus"]),
     ],
     2: [  # 第二列 - 进阶核心课程
-        ("数据结构", 0, "你能组织信息（解锁链表/树/堆/栈），但脑中思维也开始分支过度。", ["高级语言程序设计"], ["tree","stack","queue"]),
-        ("计算机组成原理", 1, "你理解CPU怎么执行代码，但再也不能忍受效率低的程序。", ["计算机导论"], []),
+        ("数据结构", 0, "你能组织信息（解锁链表/树/堆/栈），但脑中思维也开始分支过度。", ["高级语言程设"], ["tree","stack","queue"]),
+        ("计组原理", 1, "你理解CPU怎么执行代码，但再也不能忍受效率低的程序。", ["计算机导论"], []),
         ("离散数学", 2, "你可以理解空间与维度，但现实中的三维开始失去乐趣。", ["线性代数"], []),
         ("组合数学", 2.5, "你能计算复杂组合，但开始对生活中的选择过度分析。", ["离散数学","高等数学"], []),
         ("概率论", 3, "你能评估风险与不确定性，但开始对每个决定过度担忧。", ["高等数学","离散数学"], []),
     ],
     3: [  # 第三列 - 系统相关课程
-        ("操作系统", 0, "你能管理资源并发调度，副作用：你开始尝试给自己现实生活加“优先级”。", ["数据结构", "计算机组成原理"], []),
-        ("计算机网络", 1, "你能解释三次握手，但说话前总是确认：'你听到了吗？'", ["计算机组成原理"], ["路由协议","TCP/IP"]),
-        ("数据库系统", 2, "你能存储与索引信息，副作用：开始给生活每一事件打标签归档。", ["数据结构"], ["索引","SQL","范式"]),                                                            
+        ("数据库系统", 0, "你能存储与索引信息，副作用：开始给生活每一事件打标签归档。", ["数据结构"], ["索引","SQL","范式"]),
+        ("计算机网络", 1, "你能解释三次握手，但说话前总是确认：'你听到了吗？'", ["计组原理"], ["路由协议","TCP/IP"]),
+        ("操作系统", 2, "你能管理资源并发调度，副作用：你开始尝试给自己现实生活加“优先级”。", ["数据结构", "计组原理"], []),
+        ("信号与系统", 3, "你能分析信号处理，副作用：开始用滤波器过滤生活噪音。", ["高等数学","概率论"], []),                                                 
     ],
     4: [  # 第四列 - 编程 &抽象
-        ("编译原理", 0, "你能将语言翻译为指令，副作用：试图“编译”朋友的话。", ["操作系统", "离散数学"], ["编译器","解释器","反编译"]),
-        ("OOP", 1, "你掌握封装继承多态，副作用：开始对人分类并设计他们的接口。", ["高级语言程序设计","数据结构"], []),
-        ("程序设计范式", 1.5, "你理解函数式与逻辑编程，副作用：开始用Lambda表达情感。", ["高级语言程序设计","数据结构"], []),
+        ("面向对象程设", 0, "你掌握封装继承多态，副作用：开始对人分类并设计他们的接口。", ["高级语言程设","数据结构"], []),
+        ("程序设计范式", 0.5, "你理解函数式与逻辑编程，副作用：开始用Lambda表达情感。", ["高级语言程设","数据结构"], []),
+        ("用户交互技术", 1, "你理解用户体验，副作用：开始设计生活的UI/UX。", ["软件工程"], []),
+        ("编译原理", 1.5, "你能将语言翻译为指令，副作用：试图“编译”朋友的话。", ["操作系统", "离散数学"], ["编译器","解释器","反编译"]),
         ("软件工程", 2, "你开始写文档与计划，副作用：计划写完计划后拖延计划。", ["操作系统", "数据库系统"], ["文档写作","Teamwork"]),
-        ("算法设计与分析", 2.5, "你能优化问题解决方案，副作用：生活中事事追求最优解。", ["数据结构", "离散数学"], []),
+        ("算法设计分析", 2.5, "你能优化问题解决方案，副作用：生活中事事追求最优解。", ["数据结构", "离散数学"], []),
         ("密码学", 3, "你能加密与解密信息，副作用：开始怀疑所有秘密。", ["离散数学","计算机网络"], []),
-
     ],
     5: [  # 第五列 - 前沿技术
-        ("人工智能导论", 0, "你能训练模型辅助决策，副作用：再也不相信自己的直觉。", ["线性代数", "数据库系统"], []),
-        ("Web开发", 1, "你能搭网站与交互前端，副作用：所有生活按钮都想右键检查元素。", ["软件工程"], []),
+        ("人工智能导论", 1, "你能训练模型辅助决策，副作用：再也不相信自己的直觉。", ["线性代数", "数据库系统"], []),
+        ("Web开发", 0.5, "你能搭网站与交互前端，副作用：所有生活按钮都想右键检查元素。", ["软件工程","数据库系统"], []),
         ("计算机安全", 2, "你能识别攻击模式，副作用：每个链接都怀疑是钓鱼。", ["操作系统", "计算机网络"], []),
-        ("用户交互技术", 3, "你理解用户体验，副作用：开始设计生活的UI/UX。", ["软件工程"], []),
-        ("游戏开发", 1.5, "你能创建虚拟世界，副作用：现实变得索然无味。", ["用户交互技术"], ["游戏引擎"]),
+        ("游戏开发", 0, "你能创建虚拟世界，副作用：现实变得索然无味。", ["用户交互技术","程序设计范式","面向对象程设"], ["游戏引擎"]),
         ("仿真建模", 2.5, "你能模拟复杂系统，副作用：开始用模型预测生活。", ["高等数学","概率论"], []),
-        ("数据挖掘", 3, "你能从数据中发现模式，副作用：开始用数据分析人际关系。", ["人工智能导论","数据库系统"], []),
+        ("数据挖掘", 1.5, "你能从数据中发现模式，副作用：开始用数据分析人际关系。", ["人工智能导论","数据库系统"], []),
     ],
     6: [  # 第六列 - 超自然（世界观融合）
-        ("深度学习", 0, "你训练出了可预测敌人行为的模型，副作用：训练代价极高、电费猛增，社交-5。", ["人工智能导论","算法设计与分析"], []),
+        ("深度学习", 0, "你训练出了可预测敌人行为的模型，副作用：训练代价极高、电费猛增。", ["人工智能导论","算法设计分析"], []),
         ("区块链", 1, "你能建立去中心化记录系统，但你开始要求一切都需要“上链认证”。", ["数据库系统", "计算机网络"], []),
-        ("量子计算", 2, "你理解叠加与纠缠，副作用：你的身份与决定都开始不确定。", ["深度学习"], ["量子纠缠","量子位"]),
-        ("虚拟现实", 3, "你能创建沉浸式体验，副作用：现实世界变得索然无味。", ["用户交互技术"], ["仿生人会梦到电子羊吗？"]),
+        ("虚拟现实", 2, "你选择拥抱虚拟，副作用：现实世界变得索然无味。", ["用户交互技术","仿真建模"], ["仿生人会梦到电子羊吗？"]),
     ]
 }
 
-language_levels = {
-    1: [  # 第一列 - 基础课程
-        ("C", 0, "你终于学会了如何向世界说出 Hello, world!", [],[]),
+lang_levels = {
+    1: [
+        # 根节点
+        ("C", 400, 100, "你终于学会了如何向世界说出 Hello, world!", [], ["HelloWorld"]),
     ],
     2: [
-        ("C++", 0, "你终于学会了如何向世界说出 Hello, world!", [],["C"]),
+        # C 系分支
+        ("C++", 400, 150, "面向对象的力量开始显现。", ["C"], ["OOP"]),
+        ("Pascal", 250, 75, "结构化编程的温柔导师。", ["C"], ["StructuredProgramming"]),
+        # 脚本分支
+        ("Python", 550, 125, "你发现缩进也能写出世界。", ["C"], ["Scripting"]),
+        ("VisualBasic", 250, 125, "拖一拖，点一点，程序就做好了。", ["C"], ["RapidUI"]),
+    ],
+    3: [
+        # 从 C++ 分支
+        ("Java", 250, 175, "一次编写，到处运行（大概）。", ["C++"], ["JVM"]),
+        ("Rust", 550, 175, "你学会了与内存安全握手。", ["C++"], ["Ownership"]),
+        ("C#", 400, 200, "微软家的面向对象宠儿。", ["C++"], ["DotNet"]),
+        # 从 Pascal 分支
+        ("Delphi", 100, 50, "Pascal 的商业化超进化。", ["Pascal"], ["RAD"]),
+        # 从 Python 分支
+        ("JavaScript", 700, 100, "你开始支配浏览器的世界。", ["Python"], ["WebDev"]),
+        ("Ruby", 700, 150, "优雅至上的动态语言。", ["Python"], ["ElegantCode"]),
+        # 从 VB 分支
+        ("VB.NET", 100, 100, "Visual Basic 的现代续作。", ["Visual Basic"], ["DotNet"]),
+    ],
+    4: [
+        # Java 分支
+        ("Kotlin", 250, 225, "Java 的现代化外套。", ["Java"], ["AndroidDev"]),
+        # Rust 分支
+        ("Go", 550, 225, "云时代的轻量化编程语言。", ["Rust"], ["Concurrency"]),
+        # C# 分支
+        ("F#", 400, 250, "微软的函数式尝试。", ["C#"], ["Functional"]),
+        # JS 分支
+        # ("TypeScript", 750, 60, "给 JavaScript 穿上类型的铠甲。", ["JavaScript"], ["StrongTyping"]),
+        # # Ruby 分支
+        # ("Elixir", 750, 120, "分布式与并发的诗人。", ["Ruby"], ["ConcurrentProgramming"]),
+        # VB.NET 分支
+        ("ASP.NET", 100, 150, "微软的网页全家桶。", ["VB.NET"], ["WebBackend"]),
+    ],
+    5: [
+        ("Swift", 400, 50, "苹果生态的第一语言。", ["C"], ["iOSDev"]),
+        ("PHP", 700, 50, "支撑了一半互联网（真的）。", ["JavaScript"], ["BackendDev"]),
+        ("Lua", 550, 75, "游戏与嵌入式的脚本大师。", ["C"], ["GameScripting"]),
+    ],
+    6: [
+        ("Utility", 400, 300, "你学会了如何用脚本自动化生活。", [], ["Automation"]),
+        ("Markdown", 100, 350, "你学会了如何用标记语言写文档。", ["Utility"], ["Documentation"]),
+        ("Latex", 250, 350, "学术论文的排版神器。", ["Utility"], ["AcademicWriting"]),
+        ("HTML", 250, 300, "网页的骨架语言。", ["Utility"], ["WebMarkup"]),
+        ("CSS", 100, 300, "网页的美化大师。", ["HTML"], ["WebStyling"]),
+        ("SQL", 400, 350, "数据库的查询语言。", ["Utility"], ["DatabaseQuery"]),
+        ("Bash", 550, 350, "命令行的脚本语言。", ["Utility"], ["ShellScripting"]),
+
+
     ]
 }
+

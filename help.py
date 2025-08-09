@@ -1,4 +1,6 @@
 import pygame
+
+    
 class HelpSystem:
     def __init__(self):
         self.is_visible = False

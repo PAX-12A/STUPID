@@ -13,7 +13,7 @@ pygame.mixer.init()  # 初始化音频系统
 # 载入背景音乐
 try:
     pygame.mixer.music.load("assets/music/illusion.mp3")  # 替换为你的音乐文件路径
-    pygame.mixer.music.set_volume(1)  # 设置音量（0.0 到 1.0）
+    pygame.mixer.music.set_volume(0)  # 设置音量（0.0 到 1.0）
     pygame.mixer.music.play(-1)  # -1 表示循环播放
 except pygame.error as e:
     print(f"无法载入背景音乐: {e}")
@@ -58,7 +58,7 @@ class Tab:
 
 class Toolbar:
     def __init__(self):
-        from AbilityTree import AbilityTree
+        from AbilityTree import TechTree
         # 创建标签页
         self.tabs = self.create_tabs(
             ["Character", "Ability", "Inventory", "Settings"],
@@ -68,7 +68,7 @@ class Toolbar:
         self.active_tab_index = None  # 主界面默认
             
         # 创建科技树
-        self.Ability_tree = AbilityTree()
+        self.Ability_tree = TechTree()
 
     def create_tabs( self ,names, start_pos, direction="row", spacing=10):
         tabs = []
