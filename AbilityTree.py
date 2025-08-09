@@ -89,15 +89,20 @@ class BaseNode:
         if self.is_unlocked and not self.is_researched:
             self.is_researching = True
             self.press_start_time = pygame.time.get_ticks()
+
+    def finish_research(self, player):
+        self.is_researched = True
+        self.is_researching = False
+        if hasattr(self, "weapon") and self.weapon:
+            player.unlock_weapon(self.weapon)
             
-    def update_research(self, current_time):
+    def update_research(self, current_time, player):
         if self.is_researching:
             elapsed = (current_time - self.press_start_time) / 1000.0
             self.research_progress = min(1.0, elapsed / self.research_time)
             
             if self.research_progress >= 1.0:
-                self.is_researched = True
-                self.is_researching = False
+                self.finish_research(player)
                 return True
         return False
         
@@ -114,9 +119,10 @@ class TechNode(BaseNode):
         self.learned_skills = set()
 
 class LanguageNode(BaseNode):
-    def __init__(self, name, x, y, description="", prerequisites=None, skills=None):
+    def __init__(self, name, x, y, description="", prerequisites=None, skills=None,weapon=None):
         super().__init__(name, x, y, description, prerequisites)
         self.skills = skills or []
+        self.weapon = weapon  # 新增：研究完成后解锁的武器
 
 
 
@@ -141,18 +147,6 @@ class TechTree:
         self.skill_points = 0  # 可手动设置初始点数
         self.setup_Ability_tree("tech", tech_levels)
         self.setup_Ability_tree("lang", lang_levels,["C","Utility"])
-
-        # # 在 AbilityTree 或 LanguageTree 类中维护独立数据
-        # self.language_nodes = {}
-        # self.language_connections = []
-
-        # # 创建节点（LanguageNode 继承 BaseNode）
-        # self.language_nodes["Python"] = LanguageNode("Python", 100, 100, "快速开发语言")
-        # self.language_nodes["C"] = LanguageNode("C", 100, 200, "系统级语言")
-        # self.language_nodes["C++"] = LanguageNode("C++", 250, 250, "面向对象")
-
-        # # 添加连接关系
-        # self.language_connections.append(("C", "C++"))
 
         self.tabs = Toolbar.create_tabs(self,
             names=[ "Tech","Lang","Algo","Skill"],
@@ -181,8 +175,8 @@ class TechTree:
                     y = 80 + int(row_pos * 80)
                     node = TechNode(name, x, y, desc, prereqs, level, skills)
                 elif tree_type == "lang":
-                    name, x, y, desc, prereqs, skills = ability
-                    node = LanguageNode(name, x, y, desc, prereqs, skills)
+                    name, x, y, desc, prereqs, skills,weapon = ability
+                    node = LanguageNode(name, x, y, desc, prereqs, skills,weapon)
                 # elif tree_type == "algo":
                 #     name, x, y, desc, prereqs, skills = ability
                 #     node = AlgorithmNode(name, x, y, desc, prereqs, skills)
@@ -471,13 +465,13 @@ class TechTree:
                     
         return False
         
-    def update(self):
+    def update(self ,player):
         """更新研究进度"""
         current_time = pygame.time.get_ticks()
         
         # 更新正在研究的节点
         if self.pressed_node and self.pressed_node.is_researching:
-            if self.pressed_node.update_research(current_time):
+            if self.pressed_node.update_research(current_time,player):
                 # 研究完成
                 self.researched.add(self.pressed_node.name)
                 self.update_unlocked_nodes()
@@ -540,58 +534,58 @@ tech_levels = {
 lang_levels = {
     1: [
         # 根节点
-        ("C", 400, 100, "你终于学会了如何向世界说出 Hello, world!", [], ["HelloWorld"]),
+        ("C", 400, 100, "你终于学会了如何向世界说出 Hello, world!", [], ["HelloWorld"],"Pointer Sword"),
     ],
     2: [
         # C 系分支
-        ("C++", 400, 150, "面向对象的力量开始显现。", ["C"], ["OOP"]),
-        ("Pascal", 250, 75, "结构化编程的温柔导师。", ["C"], ["StructuredProgramming"]),
-        # 脚本分支
-        ("Python", 550, 125, "你发现缩进也能写出世界。", ["C"], ["Scripting"]),
-        ("VisualBasic", 250, 125, "拖一拖，点一点，程序就做好了。", ["C"], ["RapidUI"]),
+        ("C++", 400, 150, "面向对象的力量开始显现。", ["C"], ["OOP"],"Template Greatsword"),
+        # ("Pascal", 250, 75, "结构化编程的温柔导师。", ["C"], ["StructuredProgramming"]),
+        # # 脚本分支
+        ("Python", 550, 125, "你发现缩进也能写出世界。", ["C"], ["Scripting"],"Snake Staff"),
+        # ("VisualBasic", 250, 125, "拖一拖，点一点，程序就做好了。", ["C"], ["RapidUI"]),
     ],
-    3: [
-        # 从 C++ 分支
-        ("Java", 250, 175, "一次编写，到处运行（大概）。", ["C++"], ["JVM"]),
-        ("Rust", 550, 175, "你学会了与内存安全握手。", ["C++"], ["Ownership"]),
-        ("C#", 400, 200, "微软家的面向对象宠儿。", ["C++"], ["DotNet"]),
-        # 从 Pascal 分支
-        ("Delphi", 100, 50, "Pascal 的商业化超进化。", ["Pascal"], ["RAD"]),
-        # 从 Python 分支
-        ("JavaScript", 700, 100, "你开始支配浏览器的世界。", ["Python"], ["WebDev"]),
-        ("Ruby", 700, 150, "优雅至上的动态语言。", ["Python"], ["ElegantCode"]),
-        # 从 VB 分支
-        ("VB.NET", 100, 100, "Visual Basic 的现代续作。", ["Visual Basic"], ["DotNet"]),
-    ],
-    4: [
-        # Java 分支
-        ("Kotlin", 250, 225, "Java 的现代化外套。", ["Java"], ["AndroidDev"]),
-        # Rust 分支
-        ("Go", 550, 225, "云时代的轻量化编程语言。", ["Rust"], ["Concurrency"]),
-        # C# 分支
-        ("F#", 400, 250, "微软的函数式尝试。", ["C#"], ["Functional"]),
-        # JS 分支
-        # ("TypeScript", 750, 60, "给 JavaScript 穿上类型的铠甲。", ["JavaScript"], ["StrongTyping"]),
-        # # Ruby 分支
-        # ("Elixir", 750, 120, "分布式与并发的诗人。", ["Ruby"], ["ConcurrentProgramming"]),
-        # VB.NET 分支
-        ("ASP.NET", 100, 150, "微软的网页全家桶。", ["VB.NET"], ["WebBackend"]),
-    ],
-    5: [
-        ("Swift", 400, 50, "苹果生态的第一语言。", ["C"], ["iOSDev"]),
-        ("PHP", 700, 50, "支撑了一半互联网（真的）。", ["JavaScript"], ["BackendDev"]),
-        ("Lua", 550, 75, "游戏与嵌入式的脚本大师。", ["C"], ["GameScripting"]),
-    ],
-    6: [
-        ("Utility", 400, 300, "你学会了如何用脚本自动化生活。", [], ["Automation"]),
-        ("Markdown", 100, 350, "你学会了如何用标记语言写文档。", ["Utility"], ["Documentation"]),
-        ("Latex", 250, 350, "学术论文的排版神器。", ["Utility"], ["AcademicWriting"]),
-        ("HTML", 250, 300, "网页的骨架语言。", ["Utility"], ["WebMarkup"]),
-        ("CSS", 100, 300, "网页的美化大师。", ["HTML"], ["WebStyling"]),
-        ("SQL", 400, 350, "数据库的查询语言。", ["Utility"], ["DatabaseQuery"]),
-        ("Bash", 550, 350, "命令行的脚本语言。", ["Utility"], ["ShellScripting"]),
+    # 3: [
+    #     # 从 C++ 分支
+    #     ("Java", 250, 175, "一次编写，到处运行（大概）。", ["C++"], ["JVM"]),
+    #     ("Rust", 550, 175, "你学会了与内存安全握手。", ["C++"], ["Ownership"]),
+    #     ("C#", 400, 200, "微软家的面向对象宠儿。", ["C++"], ["DotNet"]),
+    #     # 从 Pascal 分支
+    #     ("Delphi", 100, 50, "Pascal 的商业化超进化。", ["Pascal"], ["RAD"]),
+    #     # 从 Python 分支
+    #     ("JavaScript", 700, 100, "你开始支配浏览器的世界。", ["Python"], ["WebDev"]),
+    #     ("Ruby", 700, 150, "优雅至上的动态语言。", ["Python"], ["ElegantCode"]),
+    #     # 从 VB 分支
+    #     ("VB.NET", 100, 100, "Visual Basic 的现代续作。", ["Visual Basic"], ["DotNet"]),
+    # ],
+    # 4: [
+    #     # Java 分支
+    #     ("Kotlin", 250, 225, "Java 的现代化外套。", ["Java"], ["AndroidDev"]),
+    #     # Rust 分支
+    #     ("Go", 550, 225, "云时代的轻量化编程语言。", ["Rust"], ["Concurrency"]),
+    #     # C# 分支
+    #     ("F#", 400, 250, "微软的函数式尝试。", ["C#"], ["Functional"]),
+    #     # JS 分支
+    #     # ("TypeScript", 750, 60, "给 JavaScript 穿上类型的铠甲。", ["JavaScript"], ["StrongTyping"]),
+    #     # # Ruby 分支
+    #     # ("Elixir", 750, 120, "分布式与并发的诗人。", ["Ruby"], ["ConcurrentProgramming"]),
+    #     # VB.NET 分支
+    #     ("ASP.NET", 100, 150, "微软的网页全家桶。", ["VB.NET"], ["WebBackend"]),
+    # ],
+    # 5: [
+    #     ("Swift", 400, 50, "苹果生态的第一语言。", ["C"], ["iOSDev"]),
+    #     ("PHP", 700, 50, "支撑了一半互联网（真的）。", ["JavaScript"], ["BackendDev"]),
+    #     ("Lua", 550, 75, "游戏与嵌入式的脚本大师。", ["C"], ["GameScripting"]),
+    # ],
+    # 6: [
+    #     ("Utility", 400, 300, "你学会了如何用脚本自动化生活。", [], ["Automation"]),
+    #     ("Markdown", 100, 350, "你学会了如何用标记语言写文档。", ["Utility"], ["Documentation"]),
+    #     ("Latex", 250, 350, "学术论文的排版神器。", ["Utility"], ["AcademicWriting"]),
+    #     ("HTML", 250, 300, "网页的骨架语言。", ["Utility"], ["WebMarkup"]),
+    #     ("CSS", 100, 300, "网页的美化大师。", ["HTML"], ["WebStyling"]),
+    #     ("SQL", 400, 350, "数据库的查询语言。", ["Utility"], ["DatabaseQuery"]),
+    #     ("Bash", 550, 350, "命令行的脚本语言。", ["Utility"], ["ShellScripting"]),
 
 
-    ]
+    # ]
 }
 

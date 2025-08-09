@@ -54,12 +54,12 @@ class Player:
         self.sequence_limit = 4 
         self.sequence_length = 0
         self.battle_style = "queue"  # 默认风格（正序）
+        self.weapons = set()
+        
   
         
         # 武器
         self.weapons = [
-            Weapon("剑击", 5, [1], 1, GREEN, weapon_type="melee", unique_in_sequence=False),
-            Weapon("旋风斩", 20, [-1, 1], 4, GREEN, weapon_type="melee", unique_in_sequence=True),
             Weapon("fireball", 15, [1,2,3,4,5], 8, GREEN, weapon_type="fireball", unique_in_sequence=True),
             Weapon("弓箭", 10, [1,2,3,4,5], 5, GREEN, weapon_type="targeted", unique_in_sequence=True)
         ]
@@ -139,8 +139,24 @@ class Player:
         else:
             print(f"技能 {skill_name} 尚未实现效果")
 
-    def unlock_weapon(self, weapon):
-        self.weapons.append(weapon)
+    def unlock_weapon(self, weapon_name):
+        if weapon_name not in self.weapons:
+            if weapon_name in weapon:
+                w = weapon[weapon_name]
+                new_weapon = Weapon(
+                    weapon_name,
+                    w["damage"],
+                    w["pattern"],
+                    w["cooldown"],
+                    w["color"],
+                    weapon_type=w["weapon_type"],
+                    unique_in_sequence=w["unique_in_sequence"]
+                )
+                self.weapons.append(new_weapon)
+                print(f"已解锁武器：{weapon_name}")
+            else:
+                print(f"武器名 {weapon_name} 不存在于weapon字典中。")
+
 
 
 
@@ -484,9 +500,6 @@ class FightScene:
                 self.message = ""
     
     def draw(self, screen, font):
-
-        # screen.fill(BLACK)
-        
         # 绘制网格
         self.draw_grid(screen)
         
@@ -530,3 +543,31 @@ class FightScene:
         self.message = ""
         self.message_timer = 0
         self.setup_enemy_intents()
+
+
+weapon = {
+    "Pointer Sword": {
+        "damage": 5,
+        "pattern": [1],
+        "cooldown": 1,
+        "color": RED,
+        "weapon_type": "melee",
+        "unique_in_sequence": False
+    },
+    "Template Greatsword":{
+        "damage": 20,
+        "pattern": [-1, 1],
+        "cooldown": 4,
+        "color": GREEN,
+        "weapon_type": "melee",
+        "unique_in_sequence": True
+    },
+    "Snake Staff":{
+        "damage": 15,
+        "pattern": [2,4,6,8],
+        "cooldown": 8,
+        "color": GREEN,
+        "weapon_type": "melee",
+        "unique_in_sequence": True
+    }
+}

@@ -102,6 +102,13 @@ class Toolbar:
         for tab in self.tabs:
             tab.is_active = False
         self.active_tab_index = None
+
+    def update(self, player):
+        """处理所有与游戏逻辑相关的更新"""
+        if self.tabs and self.active_tab_index is not None:
+            active_tab = self.tabs[self.active_tab_index]
+            if active_tab.name == "Ability":
+                self.Ability_tree.update(player)  # 研究进度逻辑
     
     def draw(self, screen, icon_font, content_font, content_font_small):
         
@@ -112,8 +119,6 @@ class Toolbar:
             active_tab = self.tabs[self.active_tab_index]
 
             if active_tab.name == "Ability":
-                # 更新科技树（处理研究进度）
-                self.Ability_tree.update()
                 # 绘制科技树
                 self.Ability_tree.draw(screen, icon_font, content_font_small)
                     
@@ -193,62 +198,49 @@ def main():
     fight_scene = FightScene()
 
     help_system = HelpSystem()
-
-
-    
-    # 主游戏循环
     running = True
     while running:
+        # 1. 事件处理
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if help_system.is_visible:
-                        help_system.is_visible = False  # 关闭帮助页
+                        help_system.is_visible = False
                     else:
-                        # 从其他标签页直接回主界面
                         toolbar.close_all_tabs()
-                        
 
-                elif event.key == pygame.K_QUESTION or event.key == pygame.K_SLASH and pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                elif event.key == pygame.K_QUESTION or (
+                    event.key == pygame.K_SLASH and pygame.key.get_mods() & pygame.KMOD_SHIFT
+                ):
                     print("Help toggled")
-                    # 支持按 Shift + / 得到 '?'
-                    # help_system.toggle(toolbar.Ability_tree.current_view)  # current_page 可是 'main' / 'skills' / 'tech'
 
-                
-            # 处理工具栏事件
-            toolbar.handle_event(fight_scene.player,event)
+            elif event.type == pygame.USEREVENT + 1:
+                if fight_scene.game_state == "enemy_turn":
+                    fight_scene.execute_enemy_turn()
+                    pygame.time.set_timer(pygame.USEREVENT + 1, 0)
 
-                # 只有主界面激活时，战斗处理才生效
+            # 工具栏事件
+            toolbar.handle_event(fight_scene.player, event)
+
+            # 战斗事件（只有主界面才生效）
             if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
                 fight_scene.handle_event(event)
-            
-        
-        # 清屏
-        screen.fill(BLACK)
-        
-        # 只有在没有激活任何标签页时才显示主游戏区域
+
+        # 2. 更新逻辑
         if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
-            # 主游戏逻辑运行中
             fight_scene.update()
+        toolbar.update(fight_scene.player)  # 这里处理科技树等进度
+
+        # 3. 绘制
+        screen.fill(BLACK)
+        if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
             fight_scene.draw(screen, ch_Pixel_20)
-
-        # ✅ 敌人回合定时器事件：仍应在这里处理
-        if event.type == pygame.USEREVENT + 1:
-            if fight_scene.game_state == "enemy_turn":
-                fight_scene.execute_enemy_turn()
-                pygame.time.set_timer(pygame.USEREVENT + 1, 0)  # 停止定时器
-
-
-
-        # 绘制工具栏
-        toolbar.draw(screen, en_Cogmind_20, ch_Pixel_20 , ch_Pixel_16)
-
-        # 处理帮助系统事件        
+        toolbar.draw(screen, en_Cogmind_20, ch_Pixel_20, ch_Pixel_16)
         help_system.draw(screen, ch_Pixel_20)
 
-        # 更新显示
         pygame.display.flip()
         clock.tick(60)
     
