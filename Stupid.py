@@ -281,7 +281,7 @@ def main():
 
             elif event.type == pygame.USEREVENT + 1:
                 if fight_scene.game_state == "enemy_turn":
-                    fight_scene.execute_enemy_turn()
+                    fight_scene.execute_enemy_turn(fight_scene)
                     pygame.time.set_timer(pygame.USEREVENT + 1, 0)
 
             # 工具栏事件
@@ -291,12 +291,9 @@ def main():
             if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
                 fight_scene.handle_event(event)
 
-        # 2. 更新逻辑
-        if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
-            fight_scene.update()
         toolbar.update(fight_scene.player)  # 这里处理科技树等进度
 
-        # 3. 绘制
+        # 2. 绘制
         screen.fill(BLACK)
         if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
             fight_scene.draw(screen, ch_Pixel_20)
