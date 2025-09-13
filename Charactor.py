@@ -37,6 +37,7 @@ class Actor:
         self.weapons = []
         self.battle_style = "queue"  # 或 stack
         self.on_move_check = None  # 回调（检测位置交换等）
+        self.alive = True   # 是否存活
 
     def add_status(self, status):
         """添加状态，如果已有同名状态，可以覆盖或叠加"""
@@ -53,8 +54,28 @@ class Actor:
         """获取某个部位的所有状态"""
         return [s for s in self.status if s.body_part == part]
     
-    def take_damage(self, damage):
-        self.health = max(0, self.health - damage)
+    def take_damage(self, damage, scene):
+        """接受伤害并检查是否死亡"""
+        self.health -= damage
+        if self.health <= 0:
+            self.die(scene)  # 传入场景来移除角色
+
+    def die(self, scene):
+        """角色死亡的基础逻辑"""
+        print(f"Pawn has died.")
+        self.health = 0  # 确保血量为 0
+        self.alive = False
+        self.remove_from_scene(scene)  # 从场景中移除角色
+
+    def remove_from_scene(self, scene):
+        """从场景中移除角色"""
+        if isinstance(self, Player):
+            print(f"Removing player from the scene...")
+        elif isinstance(self, Enemy):
+            print(f"Removing enemy from the scene...")
+            scene.enemies.remove(self)  # 移除敌人
+        else:
+            print(f"Unknown actor type: {self.name}")
     
     def update_cooldowns(self):
         for weapon in self.weapons:
@@ -111,7 +132,7 @@ class Player(Actor):
         super().__init__(position, health=100, sequence_limit=4)
         self.unlocked_skills = set()
         self.weapons = [
-            Weapon("fireball", 15, [1, 2, 3, 4, 5], 8, GREEN, weapon_type="fireball", unique_in_sequence=True),
+            Weapon("fireball", 15, [-1,0,1], 8, GREEN, weapon_type="fireball"),
         ]
         self.skill_points = {
             "tech": 5,
@@ -119,6 +140,16 @@ class Player(Actor):
             "algo": 0,
         }
         self.swap_cooldown = 0  # 记录换位剩余冷却回合数
+
+    def die(self,scene):
+        """玩家死亡时的特殊逻辑"""
+        super().die(scene)  # 调用父类的 die() 处理基本死亡逻辑
+        print("Game Over. You have died.")  # 显示游戏结束提示
+        scene.game_state = "game_over"   # ✅ 切换游戏状态，而不是删掉 player
+
+    def game_over(self):
+        """游戏结束的逻辑"""
+        print("Ending the game...")
 
     def apply_skill_effect(self, player, skill_name):
         if skill_name == "Hello world":
@@ -165,16 +196,26 @@ class Enemy(Actor):
     def __init__(self, position=5):
         super().__init__(position, health=30, sequence_limit=4)
         self.weapons = [
-            Weapon("claw", 10, [-1,1], 0, RED, weapon_type="melee"),
+            #Weapon("claw", 10, [1], 0, RED, weapon_type="melee"),
+            Weapon("Fireball", 15, [-1,0,1], 1, GREEN, weapon_type="fireball"),
+            #Weapon("Spear", 5, [1,2], 2, GREEN, weapon_type="melee"),
+            Weapon("Dash",8,[1],1,RED,weapon_type="dash_to_enemy",range=3),
+            Weapon("Arrow",13,[1],1,RED,weapon_type="ranged",range=9),
         ]
         self.waiting = False  
         self.ready_to_attack = False
 
+    def die(self,scene):
+        """敌人死亡时的特殊逻辑"""
+        super().die(scene)  # 调用父类的 die() 处理基本死亡逻辑
+        print(f"Enemy dropped loot!")  # 显示敌人掉落物品提示
+        # 这里可以增加掉落物品的逻辑
+
     def ai_take_turn(self, scene):
         player = scene.player
     
-        # 如果敌人有攻击序列
-        if self.sequence_length > 0:
+        # 如果敌人攻击序列>2
+        if self.sequence_length > 1:
             if self.waiting:  
                 # --- 检查能否命中玩家 ---
                 if self.can_hit_player(player, scene):
@@ -199,24 +240,23 @@ class Enemy(Actor):
         
         else:
             # --- 没有攻击序列：添加武器并进入 waiting ---
-            success, msg = self.add_weapon_to_sequence(0, scene)
-            if success:
+            weapon_index = random.randint(0,len(self.weapons))# random weapon
+            if self.add_weapon_to_sequence(weapon_index, scene):
                 self.waiting = True
-            scene.add_message(msg)
 
     def add_weapon_to_sequence(self, index, scene):
         if index < len(self.weapons):
             weapon = self.weapons[index]
             if weapon.unique_in_sequence and any(weapon_index == index for weapon_index in self.action_sequence):
-                return False, f"{weapon.name} Already in Sequence!"
+                return False
             if self.sequence_length >= self.sequence_limit:
-                return False, "Reached Max Sequence Length!"
+                return False
             elif self.weapons[index].is_ready():
                 self.action_sequence.append(index)
                 self.sequence_length += 1
-                return True, f"{weapon.name} Added"
+                return True
             else:
-                return False, f"{weapon.name} Cooling!"
+                return False
         return False, "无效的武器编号"
     
     def is_facing_player(self, player):
@@ -225,12 +265,17 @@ class Enemy(Actor):
     
     def can_hit_player(self, player, scene):
         """检查当前方向 & 攻击模式能否命中玩家"""
-        # #假设当前武器是序列第一个
+        #假设当前武器是序列第一个
         # weapon = self.weapons[self.action_sequence[0]] if self.action_sequence else None
         # if not weapon:
         #     return False
         # distance = player.position - self.position
         # return (self.direction == 1 and distance in weapon.pattern) or \
         #     (self.direction == -1 and -distance in weapon.pattern)
+        # return False
+        if player:
+            distance = self.position - player.position
+            if abs(distance)<=3 and distance * self.direction<0:
+                return True
         return False
     

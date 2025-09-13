@@ -246,7 +246,7 @@ class Toolbar:
 def main():
     # 设置屏幕
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("复古D&D风格工具栏")
+    pygame.display.set_caption("Stupid Game")
     clock = pygame.time.Clock()
 
     en_Cogmind_20 = get_font("en", "Cogmind", 20)
@@ -283,7 +283,6 @@ def main():
                 if fight_scene.game_state == "enemy_turn":
                     fight_scene.execute_enemy_turn(fight_scene)
                     pygame.time.set_timer(pygame.USEREVENT + 1, 0)
-
             # 工具栏事件
             toolbar.handle_event(fight_scene.player, event)
 
