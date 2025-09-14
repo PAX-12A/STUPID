@@ -134,7 +134,7 @@ class LanguageNode(BaseNode):
 
 # 科技树类
 class TechTree:
-    def __init__(self):
+    def __init__(self,get_player_data):
         self.nodes = {
             "tech": {},   # 科技树节点
             "lang": {},   # 语言树节点
@@ -154,6 +154,7 @@ class TechTree:
         self.learned_skills = set()
         self.setup_Ability_tree("tech", tech_levels)
         self.setup_Ability_tree("lang", lang_levels,["C","Utility"])
+        self.get_player_data = get_player_data  # 用于获取玩家数据的回调函数
 
         self.tabs = Toolbar.create_tabs(self,
             names=[ "Tech","Lang","Algo","Skill"],
@@ -273,6 +274,13 @@ class TechTree:
         # 绘制选中节点的详细信息
         if self.selected_node:
             self.draw_node_info(screen ,font, small_font)
+
+        data = self.get_player_data()  # 调用回调拿到玩家数据
+        point_lines = [
+            f"Points Left: {data['point']}",
+        ]
+        surf=small_font.render(point_lines[0], True, WHITE)
+        screen.blit(surf, (SCREEN_WIDTH-400, SCREEN_HEIGHT - 80))
 
     def draw_language_tree(self,screen, font, small_font):
         # image = load_image('assets/sp.png', (170,170))

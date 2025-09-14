@@ -22,4 +22,5 @@ def load_image(path, scale=None):
 
 TAB_WIDTH = 200
 TAB_HEIGHT = 40
-
+GAME_STATE_MENU = "menu"
+GAME_STATE_PLAYING = "playing"

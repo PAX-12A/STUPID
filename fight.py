@@ -39,7 +39,8 @@ class FightScene:
             "max_health": self.player.max_health,
             "sequence_limit":self.player.sequence_limit,
             "damage_multiplier":self.player.damage_multiplier,
-            "status":self.player.status
+            "status":self.player.status,
+            "point":self.player.skill_points
         }
 
     def add_message(self, text, color=WHITE, duration=2000):
@@ -212,7 +213,8 @@ class FightScene:
             # --- 类型4: fireball（攻击最近敌人±1格） ---
             elif weapon.weapon_type == "fireball":
                 closest_pawn = self.get_closest_pawn(actor.position, direction=actor.direction,pawn_type="all")
-                print(f"explosion_center:{closest_pawn.position}")
+                if closest_pawn:
+                    print(f"explosion_center:{closest_pawn.position}")
                 for offset in weapon.pattern:
                     position = closest_pawn.position + offset
                     pawn = self.get_pawn_at(position,pawn_type="all")
@@ -519,7 +521,7 @@ class FightScene:
             new_pos = (position[0], position[1]-50)
             screen.blit(text_surface, new_pos)
     
-    def draw(self, screen, font):
+    def draw(self, screen):
         # 绘制网格
         self.draw_grid(screen)
 
@@ -536,23 +538,25 @@ class FightScene:
 
         # 游戏结束屏幕
         if self.game_state == "game_over":
-            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-            overlay.set_alpha(128)
-            overlay.fill(WHITE)
-            screen.blit(overlay, (0, 0))
-            
-            if not self.enemies:
-                end_text = self.large_font.render("Congratulations!", True, GREEN)
-            else:
-                end_text = self.font.render("You Failed!", True, RED)
-            
-            end_rect = end_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2+100))
-            screen.blit(end_text, end_rect)
-            
-            restart_text = self.font.render("Press R to Continue", True, BLACK)
-            restart_rect = restart_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 120))
-            screen.blit(restart_text, restart_rect)
+            self.game_over(screen)
+
+    def game_over(self,screen):
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        overlay.set_alpha(128)
+        overlay.fill(WHITE)
+        screen.blit(overlay, (0, 0))
         
+        if not self.enemies:
+            end_text = self.large_font.render("Congratulations!", True, GREEN)
+        else:
+            end_text = self.font.render("You Failed!", True, RED)
+        
+        end_rect = end_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2+100))
+        screen.blit(end_text, end_rect)
+        
+        restart_text = self.font.render("Press q to return Menu,r to restart", True, BLACK)
+        restart_rect = restart_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 120))
+        screen.blit(restart_text, restart_rect)    
     
     def restart_game(self):
         self.player = Player(2)

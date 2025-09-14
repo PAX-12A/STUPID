@@ -59,6 +59,7 @@ class Actor:
         self.health -= damage
         if self.health <= 0:
             self.die(scene)  # 传入场景来移除角色
+        self.add_status(Status("Simplified", "brain", is_illness=True))#666
 
     def die(self, scene):
         """角色死亡的基础逻辑"""
@@ -263,19 +264,73 @@ class Enemy(Actor):
         return (self.direction == 1 and player.position > self.position) or \
             (self.direction == -1 and player.position < self.position)
     
-    def can_hit_player(self, player, scene):
+    def can_hit_player(self, player, scene):#临时的方案，实际和怪物种类相关
         """检查当前方向 & 攻击模式能否命中玩家"""
-        #假设当前武器是序列第一个
-        # weapon = self.weapons[self.action_sequence[0]] if self.action_sequence else None
-        # if not weapon:
-        #     return False
-        # distance = player.position - self.position
-        # return (self.direction == 1 and distance in weapon.pattern) or \
-        #     (self.direction == -1 and -distance in weapon.pattern)
-        # return False
         if player:
             distance = self.position - player.position
             if abs(distance)<=3 and distance * self.direction<0:
                 return True
         return False
     
+class Goblin(Enemy):
+    def __init__(self, position):
+        super().__init__(position, health=20, sequence_limit=3)
+        self.weapons = [
+            Weapon("Dagger", 6, [1], 0, RED, weapon_type="melee")
+        ]
+        self.set_ai(AggressiveAI())  # 永远近战
+
+class Archer(Enemy):
+    def __init__(self, position):
+        super().__init__(position, health=15, sequence_limit=3)
+        self.weapons = [
+            Weapon("Bow", 10, [1], 1, GREEN, weapon_type="ranged", range=5)
+        ]
+        self.set_ai(RangedAI())  # 永远远程
+
+class AggressiveAI:
+    """近战AI：追击并攻击玩家"""
+    def decide_action(self, enemy, scene):
+        player = scene.player
+        weapon = enemy.weapons[0]  # 假设永远第0个武器是近战
+
+        # 距离判断
+        if abs(player.position - enemy.position) <= max(weapon.range or 1, 1):
+            enemy.add_weapon_to_sequence(0, scene)
+            scene.add_message(f"{enemy} slashes with {weapon.name}!")
+            scene.execute_actions(enemy)
+        else:
+            # 靠近玩家
+            direction = 1 if player.position > enemy.position else -1
+            enemy.move(direction)
+
+
+class RangedAI:
+    """远程AI：保持距离射击"""
+    def decide_action(self, enemy, scene):
+        player = scene.player
+        weapon = enemy.weapons[0]  # 永远第0个武器是远程
+        distance = abs(player.position - enemy.position)
+
+        if distance <= weapon.range and weapon.is_ready():
+            enemy.add_weapon_to_sequence(0, scene)
+            scene.add_message(f"{enemy} shoots a {weapon.name}!")
+            scene.execute_actions(enemy)
+        else:
+            # 保持拉扯
+            if distance < weapon.range // 2:
+                enemy.move(-enemy.direction)
+            else:
+                enemy.move(enemy.direction if player.position > enemy.position else -enemy.direction)
+
+# def spawn_enemy(enemy_type, position):
+#     if enemy_type == "goblin":
+#         return Goblin(position)
+#     elif enemy_type == "archer":
+#         return Archer(position)
+#     else:
+#         raise ValueError(f"Unknown enemy type: {enemy_type}")
+# enemy = spawn_enemy("archer", position=8)
+# scene.enemies.append(enemy)
+
+
