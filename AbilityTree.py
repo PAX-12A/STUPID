@@ -95,11 +95,17 @@ class BaseNode:
         self.is_researched = True
         self.is_researching = False
         if hasattr(self, "weapon") and self.weapon:
-            player.unlock_weapon(self.weapon)     
+            print("WeaponUnlocked:",self.weapon)
+            player.unlock_weapon(self.weapon)
+        if hasattr(self, "unlock_skills") :# 解锁技能
+            print("SkillsUnlocked:",self.unlock_skills)
+            for skill in self.unlock_skills:
+                player.available_skills.add(skill)  # 技能树里显示出来
         player.skill_points[self.research_type]-=1
         if(self.research_type=="tech"):
             player.skill_points["lang"]+=1  # 每完成一个科技，获得1点技能点
-            player.skill_points["algo"]+=1  
+            player.skill_points["algo"]+=1
+            player.skill_points["skill"]+=2 
         print(f"PointsLeft:{player.skill_points['tech']},{player.skill_points['lang']},{player.skill_points['algo']}")
             
     def update_research(self, current_time, player):
@@ -118,18 +124,27 @@ class BaseNode:
 
 
 class TechNode(BaseNode):
-    def __init__(self, name, x, y, description="", prerequisites=None, level=1, skills=None):
+    def __init__(self, name, x, y, description="", prerequisites=None, level=1, unlock_skills=None):
         super().__init__(name, x, y, description, prerequisites)
         self.level = level
-        self.skills = skills or []
+        self.unlock_skills = unlock_skills or []
         self.learned_skills = set()
 
 class LanguageNode(BaseNode):
-    def __init__(self, name, x, y, description="", prerequisites=None, skills=None,weapon=None):
+    def __init__(self, name, x, y, description="", prerequisites=None, unlock_skills =None,weapon=None):
         super().__init__(name, x, y, description, prerequisites,research_type="lang")
-        self.skills = skills or []
+        self.unlock_skills = unlock_skills or []  # 学习语言后可见的新技能
         self.weapon = weapon  # 新增：研究完成后解锁的武器
 
+class SkillNode(BaseNode):
+    def __init__(self, name, x, y, description="", prerequisites=None, skills=None,weapon=None):
+        super().__init__(name, x, y, description, prerequisites,research_type="skill")
+        self.skills = skills or []
+
+    def finish_research(self, player):
+        super().finish_research(player)
+        if self.skill:
+            player.unlock_skill(self.skills)
 
 
 # 科技树类
@@ -139,7 +154,7 @@ class TechTree:
             "tech": {},   # 科技树节点
             "lang": {},   # 语言树节点
             "algo": {},    # 算法树节点
-            "skill": {}    # 算法树节点
+            "skill": {}    
         }
         self.connections = {
             "tech": [],
@@ -151,7 +166,6 @@ class TechTree:
         self.selected_node = None
         self.mouse_pressed = False
         self.pressed_node = None
-        self.learned_skills = set()
         self.setup_Ability_tree("tech", tech_levels)
         self.setup_Ability_tree("lang", lang_levels,["C","Utility"])
         self.get_player_data = get_player_data  # 用于获取玩家数据的回调函数
@@ -165,7 +179,7 @@ class TechTree:
     def get_active_tab_name(self):
         for tab in self.tabs:
             if tab.is_active:
-                return tab.name.lower()  # tech / skill / lang / ml
+                return tab.name.lower()  # tech / skill / lang / algo
         return "tech"
         
     def setup_Ability_tree(self, tree_type, ability_levels,initial_unlock=None):
@@ -185,9 +199,7 @@ class TechTree:
                 elif tree_type == "lang":
                     name, x, y, desc, prereqs, skills,weapon = ability
                     node = LanguageNode(name, x, y, desc, prereqs, skills,weapon)
-                # elif tree_type == "algo":
-                #     name, x, y, desc, prereqs, skills = ability
-                #     node = AlgorithmNode(name, x, y, desc, prereqs, skills)
+
                 else:
                     raise ValueError(f"未知的树类型: {tree_type}")
 
@@ -209,7 +221,6 @@ class TechTree:
             for name in initial_unlock:
                 if name in self.nodes[tree_type]:
                     self.nodes[tree_type][name].is_unlocked = True
-
                 
     def draw_tech_tree(self, screen, font, small_font):
         level_font = get_font("en", "Time", 20)
@@ -313,7 +324,7 @@ class TechTree:
             self.draw_node_info(screen ,font, small_font)
             
         
-    def draw(self, screen, font, small_font):
+    def draw(self, screen, font, small_font,player):
         icon_font = get_font("en", "Cogmind", 20)
         Toolbar.draw_tab_border(self, screen, icon_font, self.tabs)
         DOS_20= get_font("en", "DOS", 16)
@@ -321,10 +332,10 @@ class TechTree:
         subview = self.get_active_tab_name()
 
         if subview == "skill":
-            self.draw_skill_view(screen, font, small_font)
+            self.draw_skill_view(screen, font , player)
         elif subview == "lang":
             self.draw_language_tree(screen, font, small_font)
-        elif subview == "ml":
+        elif subview == "algo":
             self.draw_tech_tree(screen, font, small_font)
         else:
             self.draw_tech_tree(screen, font, small_font)
@@ -384,47 +395,49 @@ class TechTree:
                 y_offset += 16
 
         # 技能
-        if node.skills:
+        if node.unlock_skills:
             y_offset += 10
             skills_surface = small_font.render("解锁技能:", True, WHITE)
             screen.blit(skills_surface, (info_x + 10, y_offset))
             y_offset += 18
 
             # 拼接技能名
-            skill_text = ", ".join(node.skills)
+            skill_text = ", ".join(node.unlock_skills)
             skills_surface = small_font.render(skill_text, True, WHITE)
             screen.blit(skills_surface, (info_x + 15, y_offset))
             y_offset += 18
 
-    def draw_skill_view(self, screen, font, small_font):
-        
-        title = small_font.render("技能树：消耗技能点学习技能", True, WHITE)
+        if hasattr(self, "weapon") and self.weapon:
+            y_offset += 10
+            weapon_surface = small_font.render("解锁武器:", True, WHITE)
+            screen.blit(weapon_surface, (info_x + 10, y_offset))
+            y_offset += 18
+
+            weapon_surface = small_font.render(node.weapon, True, WHITE)
+            screen.blit(weapon_surface, (info_x + 15, y_offset))
+            y_offset += 18
+
+    def draw_skill_view(self, screen, font, player):
+        title = font.render("Skills", True, WHITE)
         screen.blit(title, (50, 40))
 
-        y = 80
-        x = 50
-
-        # 所有已解锁技能
-        available_skills = []
-        for node in self.nodes["skill"].values():
-            if node.is_researched and node.skills:
-                for skill in node.skills:
-                    available_skills.append(skill)
-
-        for skill in available_skills:
-            is_learned = skill in self.learned_skills
-            color = GREEN if is_learned else WHITE
-            status = "(已学习)" if is_learned else "(点击学习)"
-            skill_text = f"{skill} {status}"
-
-            text_surface = small_font.render(skill_text, True, color)
-            text_rect = text_surface.get_rect(topleft=(x, y))
+        # 左列：未学习
+        x_left, y_left = 50, 80
+        # 右列：已学习
+        x_right, y_right = 300, 80
+        for skill in player["available_skills"]:
+            text_surface = font.render(skill, True, WHITE)
+            text_rect = text_surface.get_rect(topleft=(x_left, y_left))
             screen.blit(text_surface, text_rect)
+            setattr(self, f"skill_rect_{skill}", text_rect)  # 保存点击区域
+            y_left += 30
 
-            # 存按钮区域
-            setattr(self, f"skill_rect_{skill}", text_rect)
+        for skill in player["learned_skills"]:
+            text_surface = font.render(f"{skill} (learned)", True, GREEN)
+            text_rect = text_surface.get_rect(topleft=(x_right, y_right))
+            screen.blit(text_surface, text_rect)
+            y_right += 30
 
-            y += 30
                 
     def handle_event(self, player, event):
 
@@ -456,14 +469,33 @@ class TechTree:
                         other_tab.is_active = (other_tab == tab)
                     return True
                 
-            # tech / lang / ml 模式通用
-            for node in self.nodes[tree_type].values():
-                if node.contains_point(event.pos):
-                    self.selected_node = node
-                    if node.can_unlock(self.researched) and node.is_unlocked and player.skill_points[tree_type]>0:
-                        self.pressed_node = node
-                        node.start_research()
-                    break
+            # # tech / lang / algo 模式通用
+            # for node in self.nodes[tree_type].values():
+            #     if node.contains_point(event.pos):
+            #         self.selected_node = node
+            #         if node.can_unlock(self.researched) and node.is_unlocked and player.skill_points[tree_type]>0:
+            #             self.pressed_node = node
+            #             node.start_research()
+            #         break
+
+            if tree_type == "skill":
+                # 检测技能点击
+                for skill in player.available_skills:
+                    rect = getattr(self, f"skill_rect_{skill}", None)
+                    if rect and rect.collidepoint(event.pos):
+                        if skill not in player.learned_skills and player.skill_points["skill"] > 0:
+                            player.unlock_skill(skill)
+                            player.skill_points["skill"] -= 1
+                        return True
+            else:
+                # tech / lang / algo 模式通用
+                for node in self.nodes[tree_type].values():
+                    if node.contains_point(event.pos):
+                        self.selected_node = node
+                        if node.can_unlock(self.researched) and node.is_unlocked and player.skill_points[tree_type] > 0:
+                            self.pressed_node = node
+                            node.start_research()
+                        break
             self.mouse_pressed = True
 
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
@@ -512,7 +544,7 @@ tech_levels = {
         ("概率论", 3, "你能评估风险与不确定性，但开始对每个决定过度担忧。", ["高等数学","离散数学"], []),
     ],
     3: [  # 第三列 - 系统相关课程
-        ("数据库系统", 0, "你能存储与索引信息，副作用：开始给生活每一事件打标签归档。", ["数据结构"], ["索引","SQL","范式"]),
+        ("数据库系统", 0, "你能存储与索引信息，副作用：开始给生活每一事件打标签归档。", ["数据结构"], ["Index","SQL","范式"]),
         ("计算机网络", 1, "你能解释三次握手，但说话前总是确认：'你听到了吗？'", ["计组原理"], ["路由协议","TCP/IP"]),
         ("操作系统", 2, "你能管理资源并发调度，副作用：你开始尝试给自己现实生活加“优先级”。", ["数据结构", "计组原理"], []),
         ("信号与系统", 3, "你能分析信号处理，副作用：开始用滤波器过滤生活噪音。", ["高等数学","概率论"], []),                                                 
@@ -544,7 +576,7 @@ tech_levels = {
 lang_levels = {
     1: [
         # 根节点
-        ("C", 400, 100, "你终于学会了如何向世界说出 Hello, world!", [], ["HelloWorld"],"Pointer Sword"),
+        ("C", 400, 100, "你终于学会了如何向世界说出 Hello, world!", [], ["Hello world"],"Pointer Sword"),
     ],
     2: [
         # C系分支
@@ -596,4 +628,3 @@ lang_levels = {
         ("Bash", 550, 350, "命令行的脚本语言。", ["Utility"], ["ShellScripting"],""),
     ]
 }
-

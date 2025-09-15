@@ -24,7 +24,7 @@ class Status:
         return f"<Status {self.name} on {self.body_part}>"
     
 class Actor:
-    def __init__(self, position=0, health=100, sequence_limit=4):
+    def __init__(self, position=0, health=100, sequence_limit=2):
         self.position = position
         self.direction = 1
         self.health = health
@@ -130,17 +130,20 @@ class Actor:
 
 class Player(Actor):
     def __init__(self, position=2):
-        super().__init__(position, health=100, sequence_limit=4)
-        self.unlocked_skills = set()
+        super().__init__(position, health=100, sequence_limit=2)
         self.weapons = [
             Weapon("fireball", 15, [-1,0,1], 8, GREEN, weapon_type="fireball"),
         ]
         self.skill_points = {
-            "tech": 5,
+            "tech": 20,
             "lang": 5,
             "algo": 0,
+            "skill":5,
         }
         self.swap_cooldown = 0  # 记录换位剩余冷却回合数
+        self.available_skills = set(["Greenhand"])  # 可见技能
+        self.learned_skills = set(["Student"])
+        self.skill_effects = {}  # 技能效果字典
 
     def die(self,scene):
         """玩家死亡时的特殊逻辑"""
@@ -193,18 +196,37 @@ class Player(Actor):
             else:
                 print(f"武器名 {weapon_name} 不存在于weapon字典中。")
 
+    def unlock_skill(self, skill_name: str):
+        """解锁技能，并立即应用其效果"""
+        if skill_name in self.learned_skills:
+            return False  # 已解锁，跳过
+
+        self.learned_skills.add(skill_name)
+        self.available_skills.remove(skill_name)
+
+        # 应用技能效果
+        effect = SkillLibrary.get(skill_name)
+        if effect:
+            effect.apply(self)  
+            self.skill_effects[skill_name] = effect
+            print(f"[Skill] 解锁技能 {skill_name}，效果已生效。")
+        else:
+            print(f"[Skill] {skill_name} 未在技能库中定义。")
+        return True
+
 class Enemy(Actor):
-    def __init__(self, position=5):
-        super().__init__(position, health=30, sequence_limit=4)
+    def __init__(self, position=5 , enemy_type="melee"):
+        super().__init__(position, health=30, sequence_limit=3)
         self.weapons = [
             #Weapon("claw", 10, [1], 0, RED, weapon_type="melee"),
-            Weapon("Fireball", 15, [-1,0,1], 1, GREEN, weapon_type="fireball"),
+            Weapon("Fireball", 15, [-1,0,1], 1, GREEN, weapon_type="fireball",range=5),
             #Weapon("Spear", 5, [1,2], 2, GREEN, weapon_type="melee"),
             Weapon("Dash",8,[1],1,RED,weapon_type="dash_to_enemy",range=3),
             Weapon("Arrow",13,[1],1,RED,weapon_type="ranged",range=9),
         ]
         self.waiting = False  
         self.ready_to_attack = False
+        self.type = enemy_type
 
     def die(self,scene):
         """敌人死亡时的特殊逻辑"""
@@ -214,8 +236,7 @@ class Enemy(Actor):
 
     def ai_take_turn(self, scene):
         player = scene.player
-    
-        # 如果敌人攻击序列>2
+        # 如果敌人攻击序列>1
         if self.sequence_length > 1:
             if self.waiting:  
                 # --- 检查能否命中玩家 ---
@@ -234,7 +255,7 @@ class Enemy(Actor):
                         self.move(self.direction)
                 
                 return
-            elif self.ready_to_attack == 1:
+            elif self.ready_to_attack :
                 # 施放攻击
                 scene.execute_actions(self)
                 self.ready_to_attack=False
@@ -267,27 +288,15 @@ class Enemy(Actor):
     def can_hit_player(self, player, scene):#临时的方案，实际和怪物种类相关
         """检查当前方向 & 攻击模式能否命中玩家"""
         if player:
-            distance = self.position - player.position
-            if abs(distance)<=3 and distance * self.direction<0:
-                return True
+            distance = abs(self.position - player.position)
+            if self.is_facing_player(player):
+                if self.type == "melee":
+                    return distance <= 1
+                elif self.type == "range":
+                    print(f"Weapon Range:{self.weapons[0].range}")
+                    return distance <= self.weapons[0].range
         return False
     
-class Goblin(Enemy):
-    def __init__(self, position):
-        super().__init__(position, health=20, sequence_limit=3)
-        self.weapons = [
-            Weapon("Dagger", 6, [1], 0, RED, weapon_type="melee")
-        ]
-        self.set_ai(AggressiveAI())  # 永远近战
-
-class Archer(Enemy):
-    def __init__(self, position):
-        super().__init__(position, health=15, sequence_limit=3)
-        self.weapons = [
-            Weapon("Bow", 10, [1], 1, GREEN, weapon_type="ranged", range=5)
-        ]
-        self.set_ai(RangedAI())  # 永远远程
-
 class AggressiveAI:
     """近战AI：追击并攻击玩家"""
     def decide_action(self, enemy, scene):
@@ -332,5 +341,34 @@ class RangedAI:
 #         raise ValueError(f"Unknown enemy type: {enemy_type}")
 # enemy = spawn_enemy("archer", position=8)
 # scene.enemies.append(enemy)
+
+class SkillEffect:
+    """技能效果对象"""
+    def __init__(self, name, apply_func):
+        self.name = name
+        self.apply_func = apply_func
+
+    def apply(self, player):
+        self.apply_func(player)
+
+
+class SkillLibrary:
+    """技能库：集中定义所有技能"""
+    _skills = {}
+
+    @classmethod
+    def register(cls, name, apply_func):
+        cls._skills[name] = SkillEffect(name, apply_func)
+
+    @classmethod
+    def get(cls, name):
+        return cls._skills.get(name, None)
+    
+    def init_skills():
+        SkillLibrary.register("toughness", lambda p: setattr(p, "max_health", p.max_health + 20))
+        SkillLibrary.register("fire_mastery", lambda p: p.skill_effects.update({"fire_bonus": 1.5}))
+        SkillLibrary.register("Greenhand", lambda p: setattr(p, "max_health", p.max_health + 20))
+        SkillLibrary.register("Hello world", lambda p: setattr(p, "sequence_limit", p.sequence_limit + 1))
+
 
 

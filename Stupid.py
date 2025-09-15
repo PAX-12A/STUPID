@@ -129,14 +129,14 @@ class Toolbar:
             }.get(active_tab.name, None)
 
             if draw_method:
-                draw_method(screen, icon_font, content_font, content_font_small)
+                draw_method(screen, icon_font, content_font, content_font_small,player=self.get_player_data())
 
     # ==== 以下是分离的页面绘制函数 ====
 
-    def draw_ability_page(self, screen, icon_font, content_font, content_font_small):
-        self.Ability_tree.draw(screen, icon_font, content_font_small)
+    def draw_ability_page(self, screen, icon_font, content_font, content_font_small,player):
+        self.Ability_tree.draw(screen, icon_font, content_font_small,player)
 
-    def draw_inventory_page(self, screen, icon_font, content_font, content_font_small):
+    def draw_inventory_page(self, screen, icon_font, content_font, content_font_small,player=None):
         content_lines = [
             "这里是你的物品背包",
             "可以存放武器、装备和道具",
@@ -146,10 +146,10 @@ class Toolbar:
             text_surface = content_font.render(line, True, WHITE)
             screen.blit(text_surface, (50, 100 + i * 25))
 
-    def draw_character_page(self, screen, icon_font, content_font, content_font_small):
+    def draw_character_page(self, screen, icon_font, content_font, content_font_small,player=None):
         self.draw_character(screen)
 
-    def draw_settings_page(self, screen, icon_font, content_font, content_font_small):
+    def draw_settings_page(self, screen, icon_font, content_font, content_font_small,player=None):
         content_lines = [
             "调整游戏设置和选项",
             "包括音效、画质和操作设置",
@@ -350,6 +350,9 @@ def main():
     
     # 创建工具栏
     toolbar = Toolbar(fight_scene.get_player_data)
+
+    skillLib = SkillLibrary
+    skillLib.init_skills()
 
     help_system = HelpSystem()
     menu = MainMenu(en_Cogmind_20)

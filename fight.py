@@ -40,7 +40,9 @@ class FightScene:
             "sequence_limit":self.player.sequence_limit,
             "damage_multiplier":self.player.damage_multiplier,
             "status":self.player.status,
-            "point":self.player.skill_points
+            "point":self.player.skill_points,
+            "available_skills":self.player.available_skills,
+            "learned_skills":self.player.learned_skills,
         }
 
     def add_message(self, text, color=WHITE, duration=2000):
@@ -215,11 +217,11 @@ class FightScene:
                 closest_pawn = self.get_closest_pawn(actor.position, direction=actor.direction,pawn_type="all")
                 if closest_pawn:
                     print(f"explosion_center:{closest_pawn.position}")
-                for offset in weapon.pattern:
-                    position = closest_pawn.position + offset
-                    pawn = self.get_pawn_at(position,pawn_type="all")
-                    if pawn:
-                        pawn.take_damage(actual_damage,scene=self)
+                    for offset in weapon.pattern:
+                        position = closest_pawn.position + offset
+                        pawn = self.get_pawn_at(position,pawn_type="all")
+                        if pawn:
+                            pawn.take_damage(actual_damage,scene=self)
 
     def attack_by_pattern(self,weapon,actual_damage,actor):
 
@@ -304,7 +306,8 @@ class FightScene:
             return  # 没有空位就不刷怪
 
         new_pos = random.choice(possible_positions)
-        new_enemy = Enemy(new_pos)
+        enemy_type = random.choice(["melee", "range"])
+        new_enemy = Enemy(new_pos,enemy_type)
         new_enemy.on_move_check = self.handle_move
         self.enemies.append(new_enemy)
         # self.add_message("Enemy Arrived!")
@@ -509,17 +512,19 @@ class FightScene:
 
     def draw_intents(self, screen):
         for enemy in self.enemies:
-            line = "" 
+            line = enemy.type 
             # print(f"{enemy.position}:{enemy.waiting}")
             if enemy.waiting:
-                line = "!"
+                line += "!"
             if enemy.ready_to_attack:
-                line = "!!!"
+                line += "!!!"
             
             text_surface = self.small_font.render(line, True, RED)
             position= self.get_cell_center(enemy.position)
             new_pos = (position[0], position[1]-50)
             screen.blit(text_surface, new_pos)
+
+            
     
     def draw(self, screen):
         # 绘制网格
