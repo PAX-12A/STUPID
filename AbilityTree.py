@@ -291,7 +291,7 @@ class TechTree:
             f"Points Left: {data['point']}",
         ]
         surf=small_font.render(point_lines[0], True, WHITE)
-        screen.blit(surf, (SCREEN_WIDTH-400, SCREEN_HEIGHT - 80))
+        screen.blit(surf, (SCREEN_WIDTH-500, SCREEN_HEIGHT - 80))
 
     def draw_language_tree(self,screen, font, small_font):
         # image = load_image('assets/sp.png', (170,170))
@@ -327,7 +327,6 @@ class TechTree:
     def draw(self, screen, font, small_font,player):
         icon_font = get_font("en", "Cogmind", 20)
         Toolbar.draw_tab_border(self, screen, icon_font, self.tabs)
-        DOS_20= get_font("en", "DOS", 16)
 
         subview = self.get_active_tab_name()
 
@@ -407,7 +406,7 @@ class TechTree:
             screen.blit(skills_surface, (info_x + 15, y_offset))
             y_offset += 18
 
-        if hasattr(self, "weapon") and self.weapon:
+        if hasattr(node, "weapon") and node.weapon:
             y_offset += 10
             weapon_surface = small_font.render("解锁武器:", True, WHITE)
             screen.blit(weapon_surface, (info_x + 10, y_offset))
@@ -416,6 +415,11 @@ class TechTree:
             weapon_surface = small_font.render(node.weapon, True, WHITE)
             screen.blit(weapon_surface, (info_x + 15, y_offset))
             y_offset += 18
+            girl_img= load_image("arts/weapon_girl.png", (273,273))
+            screen.blit(girl_img, (750,330))
+            weapon_img= load_image(f"arts/sprite/weapons/{node.weapon}.png",(120,120))
+            screen.blit(weapon_img, (780,450))
+            
 
     def draw_skill_view(self, screen, font, player):
         title = font.render("Skills", True, WHITE)
@@ -588,7 +592,7 @@ lang_levels = {
     ],
     3: [
         # 从 C++ 分支
-        ("Java", 250, 175, "一次编写，到处运行（大概）。", ["C++"], ["JVM"],""),
+        ("Java", 250, 175, "一次编写，到处运行（大概）。", ["C++"], ["JVM"],"JVM Inferno Staff"),
         ("Rust", 550, 175, "你学会了与内存安全握手。", ["C++"], ["Ownership"],""),
         ("C#", 400, 200, "微软家的面向对象宠儿。", ["C++"], ["DotNet"],""),
         # 从 Pascal 分支

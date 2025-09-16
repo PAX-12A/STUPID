@@ -47,6 +47,7 @@ class Tab:
         text_surface = font.render(self.name, True, text_color)
         text_rect = text_surface.get_rect(center=self.rect.center)
         screen.blit(text_surface, text_rect)
+        render_1bit_sprite(screen, load_image(f"arts/sprite/{self.name}.png",(48,48)), (self.rect.x-3, self.rect.y), text_color)
         
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
@@ -258,7 +259,8 @@ class MainMenu:
 
     def draw(self, screen):
         screen.fill(BLACK)
-        title_surface = self.font.render("Stupid Game", True, WHITE)
+        menu_font=get_font("en","Patriot",50)
+        title_surface = menu_font.render("Simplicity is all YOU Need", True, WHITE)
         title_rect = title_surface.get_rect(center=(SCREEN_WIDTH//2, 100))
         screen.blit(title_surface, title_rect)
 
@@ -269,10 +271,13 @@ class MainMenu:
                 color = GREEN 
                 pic = f"girl{i+1}"
                 self.render_ascii_art(screen, label=pic, font_size=16, x=380, y=50, color=WHITE)
+
+            image = load_image(f"arts/sprite/{self.options[i]}.png")
+            render_1bit_sprite(screen, image, (380, 270 + i*50 - image.get_width()//2), color)
             text_surface = self.font.render(option, True, color)
             text_rect = text_surface.get_rect(center=(SCREEN_WIDTH//2, 270 + i*50))
             screen.blit(text_surface, text_rect)
-
+            
     def render_ascii_art(self, screen, label, font_size=16, x=10, y=20, color=WHITE):
         # 加载 ASCII art 索引
         with open("ASCII.json", "r", encoding="utf-8") as f:
@@ -320,6 +325,7 @@ class MainMenu:
         line_index = 0
         self.draw_text(screen,text_lines[line_index], 50, start_y + line_index * line_spacing, font,color)
         line_index += 1
+
         pygame.display.flip()
 
         waiting = True

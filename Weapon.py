@@ -26,11 +26,20 @@ class Weapon:
 
 
 weapon_info = {
-    "Pointer Sword": {
-        "damage": 10,
+    "Hello World": {
+        "damage": 5,
         "pattern": [1],
         "range": 9,
         "cooldown": 1,
+        "color": RED,
+        "weapon_type": "melee",
+        "unique_in_sequence": False
+    },
+    "Pointer Sword": {
+        "damage": 5,
+        "pattern": [1],
+        "range": 9,
+        "cooldown": 4,
         "color": RED,
         "weapon_type": "dash_to_enemy",
         "unique_in_sequence": False
@@ -51,14 +60,14 @@ weapon_info = {
         "weapon_type": "melee",
         "unique_in_sequence": True
     },
-    # "Text Rain":{
-    #     "damage": 5,
-    #     "pattern": [-5,-4,-3,-2,-1,1,2,3,4,5],
-    #     "cooldown": 8,
-    #     "color": GREEN,
-    #     "weapon_type": "melee",
-    #     "unique_in_sequence": True
-    # },
+    "Text Rain":{
+        "damage": 5,
+        "pattern": [-5,-4,-3,-2,-1,1,2,3,4,5],
+        "cooldown": 8,
+        "color": GREEN,
+        "weapon_type": "melee",
+        "unique_in_sequence": True
+    },
     "Formula Barrage":{
         "damage": 10,
         "pattern": [1,2,3,4,5],
@@ -68,7 +77,6 @@ weapon_info = {
         "weapon_type": "ranged",
         "unique_in_sequence": True
     },
-
     "Random Generator":{
         "damage": 6,
         "pattern": [-5,-4,-3,-2,-1,1,2,3,4,5],
@@ -76,5 +84,14 @@ weapon_info = {
         "color": GREEN,
         "weapon_type": "random",
         "unique_in_sequence": True
-    }
+    },
+    "JVM Inferno Staff": {
+        "damage": 15,
+        "pattern": [-2,-1,0,1,2],
+        "range": 9,
+        "cooldown": 7,
+        "color": RED,
+        "weapon_type": "fireball",
+        "unique_in_sequence": False
+    },
 }

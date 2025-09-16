@@ -131,9 +131,7 @@ class Actor:
 class Player(Actor):
     def __init__(self, position=2):
         super().__init__(position, health=100, sequence_limit=2)
-        self.weapons = [
-            Weapon("fireball", 15, [-1,0,1], 8, GREEN, weapon_type="fireball"),
-        ]
+        self.weapons = []
         self.skill_points = {
             "tech": 20,
             "lang": 5,
@@ -144,6 +142,8 @@ class Player(Actor):
         self.available_skills = set(["Greenhand"])  # 可见技能
         self.learned_skills = set(["Student"])
         self.skill_effects = {}  # 技能效果字典
+
+        self.unlock_weapon("Hello World")  # 初始武器
 
     def die(self,scene):
         """玩家死亡时的特殊逻辑"""
@@ -218,15 +218,18 @@ class Enemy(Actor):
     def __init__(self, position=5 , enemy_type="melee"):
         super().__init__(position, health=30, sequence_limit=3)
         self.weapons = [
-            #Weapon("claw", 10, [1], 0, RED, weapon_type="melee"),
+            Weapon("claw", 10, [1], 0, RED, weapon_type="melee"),
+            Weapon("Spear", 5, [1,2], 2, GREEN, weapon_type="melee"),
             Weapon("Fireball", 15, [-1,0,1], 1, GREEN, weapon_type="fireball",range=5),
-            #Weapon("Spear", 5, [1,2], 2, GREEN, weapon_type="melee"),
-            Weapon("Dash",8,[1],1,RED,weapon_type="dash_to_enemy",range=3),
             Weapon("Arrow",13,[1],1,RED,weapon_type="ranged",range=9),
+            Weapon("Dash",8,[1],1,RED,weapon_type="dash_to_enemy",range=3),
         ]
         self.waiting = False  
         self.ready_to_attack = False
+        self.adding = False
+        self.moving = False
         self.type = enemy_type
+        
 
     def die(self,scene):
         """敌人死亡时的特殊逻辑"""
@@ -252,7 +255,12 @@ class Enemy(Actor):
                         self.turn_around()
                         scene.add_message(f"Enemy turn around")
                     else:
-                        self.move(self.direction)
+                        if self.moving:
+                            self.move(self.direction)
+                            self.moving = False
+                        else:
+                            self.moving = True
+                    
                 
                 return
             elif self.ready_to_attack :
@@ -261,10 +269,20 @@ class Enemy(Actor):
                 self.ready_to_attack=False
         
         else:
-            # --- 没有攻击序列：添加武器并进入 waiting ---
-            weapon_index = random.randint(0,len(self.weapons))# random weapon
-            if self.add_weapon_to_sequence(weapon_index, scene):
-                self.waiting = True
+            if self.adding :
+                
+                # --- 没有攻击序列：添加武器并进入 waiting ---
+                if self.type == "melee" :
+                    weapon_index = random.randint(0,1)# random weapon
+                elif self.type == "range":
+                    weapon_index = random.randint(2,3)# random weapon
+                    
+                if self.add_weapon_to_sequence(weapon_index, scene):
+                    self.waiting = True
+
+                self.adding = False
+            else:
+                self.adding = True
 
     def add_weapon_to_sequence(self, index, scene):
         if index < len(self.weapons):
@@ -293,8 +311,9 @@ class Enemy(Actor):
                 if self.type == "melee":
                     return distance <= 1
                 elif self.type == "range":
-                    print(f"Weapon Range:{self.weapons[0].range}")
-                    return distance <= self.weapons[0].range
+                    if scene.can_see(self,player):
+                        print(f"Weapon Range:{self.weapons[0].range}, :{self.action_sequence[0]}")
+                        return distance <= self.action_sequence[0]
         return False
     
 class AggressiveAI:

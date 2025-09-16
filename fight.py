@@ -65,12 +65,6 @@ class FightScene:
         return rect.centerx, rect.centery
     
     def get_pawn_at(self, pos, pawn_type="enemy"):
-        """
-        在指定位置获取单位
-        :param pos: 位置 (int)
-        :param pawn_type: "enemy" | "ally" | "player" | "all"
-        :return: Pawn 对象或 None
-        """
         if pawn_type == "enemy":
             pawns = self.enemies
         elif pawn_type == "player":
@@ -122,6 +116,17 @@ class FightScene:
             return None
 
         return closest
+    
+    def can_see(self,pawn1,pawn2):
+        # 视线判定：两者之间没有其他单位阻挡
+        if pawn1.position == pawn2.position:
+            return True
+        start = min(pawn1.position, pawn2.position)
+        end = max(pawn1.position, pawn2.position)
+        for enemy in self.enemies:
+            if enemy.position > start and enemy.position < end:
+                return False
+        return True
 
 
  
@@ -407,14 +412,19 @@ class FightScene:
             character = load_image('assets/hero.png')
         elif type == "Enemy1":
             character = load_image('assets/Enemy1.png')
+
+        if hasattr(pawn,"moving") and pawn.moving:
+            arrow_color = GREEN
+        else:
+            arrow_color = GRAY
             
         # 根据方向翻转
         if pawn.direction == 1:  # 朝右
             draw_img = character
-            arrow_surface = arrow_font.render("→", True, GRAY)
+            arrow_surface = arrow_font.render("→", True, arrow_color)
         else:  # 朝左
             draw_img = pygame.transform.flip(character, True, False)
-            arrow_surface = arrow_font.render("←", True, GRAY)
+            arrow_surface = arrow_font.render("←", True, arrow_color)
 
         # 获取格子矩形 & 中心
         rect = self.get_cell_rect(pawn.position)
@@ -435,20 +445,19 @@ class FightScene:
             cooldown_surface = arrow_font.render(line, True, GRAY)
             screen.blit(cooldown_surface, (arrow_x, arrow_y + 10))
         if type =="Enemy1":
-            intents = self.draw_enemy_intent(pawn)
-            for intent in intents:
-                intent_surface = arrow_font.render(intent, True, RED)
-                screen.blit(intent_surface, (arrow_x, arrow_y + 10))
+            for index in pawn.action_sequence:
+                weapon = pawn.weapons[index]
+                intent_surface = arrow_font.render(f"{weapon.name}({weapon.damage})", True, RED)
+                screen.blit(intent_surface, (arrow_x, arrow_y + 30))
+                weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png")
+                render_1bit_sprite(screen, weapon_image, (arrow_x -20, arrow_y + 30), RED)
                 arrow_y += 15
-        
+            if pawn.adding:
+                intent_surface = arrow_font.render("+", True, RED)
+                screen.blit(intent_surface, (arrow_x, arrow_y + 30))
 
-    def draw_enemy_intent(self, pawn):
-        line=[]
-        for index in pawn.action_sequence:
-            weapon = pawn.weapons[index]
-            line.append(f"{weapon.name}({weapon.damage})")
 
-        return line
+
 
     def draw_ui(self,screen):
         # 绘制玩家血量,假设最大血量是 10 格
@@ -468,8 +477,10 @@ class FightScene:
             color = GREEN if weapon.is_ready() else RED
             cooldown_text = f"Cooldown: {weapon.current_cooldown}" if not weapon.is_ready() else "Ready"
             
-            weapon_text = self.small_font.render(f"{i+1}. {weapon.name} ({cooldown_text})", True, color)
-            screen.blit(weapon_text, (20, weapon_y + i * 30))
+            weapon_text = self.small_font.render(f"{i+1}.    {weapon.name} ({cooldown_text})", True, color)
+            screen.blit(weapon_text, (10, weapon_y + i * 30))
+            weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png", (32, 32))
+            render_1bit_sprite(screen, weapon_image, (30, weapon_y + i * 30 - 10 ), color)
         
         # 绘制动作序列
         if self.player.action_sequence:

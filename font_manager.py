@@ -20,6 +20,8 @@ def get_font(lang: str, name: str, size: int = 16):
                 font_path = "assets/fonts/Cogmind.ttf"
             elif name == "Time":
                 font_path = "assets/fonts/Time.ttf"
+            elif name == "Patriot":
+                font_path = "assets/fonts/Patriot.ttf"
             # ... add more styles
         else:
             raise ValueError("Unsupported language or name")
