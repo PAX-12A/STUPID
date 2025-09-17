@@ -239,47 +239,42 @@ class Enemy(Actor):
 
     def ai_take_turn(self, scene):
         player = scene.player
-        # 如果敌人攻击序列>1
-        if self.sequence_length > 1:
-            if self.waiting:  
-                # --- 检查能否命中玩家 ---
-                if self.can_hit_player(player, scene):
-                    # 可以命中 → 保持等待状态，下一回合会攻击
-                    scene.add_message(f"Enemy is ready to attack")
-                    # 等待结束后下回合执行攻击
-                    self.waiting = False  
-                    self.ready_to_attack=True
+
+        if self.waiting:  
+            # --- 检查能否命中玩家 ---
+            if self.can_hit_player(player, scene):
+                # 可以命中 → 保持等待状态，下一回合会攻击
+                scene.add_message(f"Enemy is ready to attack")
+                # 等待结束后下回合执行攻击
+                self.waiting = False  
+                self.ready_to_attack=True
+            else:
+                # --- 不能命中，先调整方向 ---
+                if not self.is_facing_player(player):
+                    self.turn_around()
+                    scene.add_message(f"Enemy turn around")
                 else:
-                    # --- 不能命中，先调整方向 ---
-                    if not self.is_facing_player(player):
-                        self.turn_around()
-                        scene.add_message(f"Enemy turn around")
+                    if self.moving:
+                        self.move(self.direction)
+                        self.moving = False
                     else:
-                        if self.moving:
-                            self.move(self.direction)
-                            self.moving = False
-                        else:
-                            self.moving = True
-                    
-                
-                return
-            elif self.ready_to_attack :
-                # 施放攻击
-                scene.execute_actions(self)
-                self.ready_to_attack=False
-        
+                        self.moving = True 
+            return
+        elif self.ready_to_attack :
+            # 施放攻击
+            scene.execute_actions(self)
+            self.ready_to_attack=False        
         else:
-            if self.adding :
-                
+            if self.adding :                
                 # --- 没有攻击序列：添加武器并进入 waiting ---
                 if self.type == "melee" :
                     weapon_index = random.randint(0,1)# random weapon
                 elif self.type == "range":
-                    weapon_index = random.randint(2,3)# random weapon
-                    
-                if self.add_weapon_to_sequence(weapon_index, scene):
+                    weapon_index = random.randint(2,3)# random weapon    
+                self.add_weapon_to_sequence(weapon_index, scene)
+                
+                if self.sequence_length > 1:
                     self.waiting = True
-
                 self.adding = False
             else:
                 self.adding = True

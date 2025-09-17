@@ -222,8 +222,9 @@ class TechTree:
                 if name in self.nodes[tree_type]:
                     self.nodes[tree_type][name].is_unlocked = True
                 
-    def draw_tech_tree(self, screen, font, small_font):
+    def draw_tech_tree(self, screen):
         level_font = get_font("en", "Time", 20)
+        font = get_font("ch", "Pixel", 16)
         # 绘制等级分隔线和标题
         for level in range(1, 7):
             x = 80 + (level - 1) * 130
@@ -280,20 +281,20 @@ class TechTree:
                                      
         # 绘制所有节点
         for node in self.nodes["tech"].values():
-            node.draw(screen, small_font)
+            node.draw(screen, font)
             
         # 绘制选中节点的详细信息
         if self.selected_node:
-            self.draw_node_info(screen ,font, small_font)
+            self.draw_node_info(screen ,font, font)
 
         data = self.get_player_data()  # 调用回调拿到玩家数据
         point_lines = [
             f"Points Left: {data['point']}",
         ]
-        surf=small_font.render(point_lines[0], True, WHITE)
+        surf= font.render(point_lines[0], True, WHITE)
         screen.blit(surf, (SCREEN_WIDTH-500, SCREEN_HEIGHT - 80))
 
-    def draw_language_tree(self,screen, font, small_font):
+    def draw_language_tree(self,screen):
         # image = load_image('assets/sp.png', (170,170))
         # screen.blit(image, (800,400))
 
@@ -316,28 +317,29 @@ class TechTree:
             pygame.draw.line(screen, line_color, start_node.rect.center, end_node.rect.center, line_width)
 
         # 再绘制节点
+        font = get_font("en", "Cogmind", 12)
         for node in self.nodes["lang"].values():
-            node.draw(screen, small_font)
+            node.draw(screen, font)
 
                 # 绘制选中节点的详细信息
         if self.selected_node:
-            self.draw_node_info(screen ,font, small_font)
+            self.draw_node_info(screen,font,font)
             
         
-    def draw(self, screen, font, small_font,player):
+    def draw(self, screen , player):
         icon_font = get_font("en", "Cogmind", 20)
         Toolbar.draw_tab_border(self, screen, icon_font, self.tabs)
 
         subview = self.get_active_tab_name()
 
         if subview == "skill":
-            self.draw_skill_view(screen, font , player)
+            self.draw_skill_view(screen,player)
         elif subview == "lang":
-            self.draw_language_tree(screen, font, small_font)
+            self.draw_language_tree(screen)
         elif subview == "algo":
-            self.draw_tech_tree(screen, font, small_font)
+            self.draw_tech_tree(screen)
         else:
-            self.draw_tech_tree(screen, font, small_font)
+            self.draw_tech_tree(screen)
 
         
        
@@ -421,7 +423,8 @@ class TechTree:
             screen.blit(weapon_img, (780,450))
             
 
-    def draw_skill_view(self, screen, font, player):
+    def draw_skill_view(self,screen,player):
+        font = get_font("en", "Cogmind", 16)
         title = font.render("Skills", True, WHITE)
         screen.blit(title, (50, 40))
 

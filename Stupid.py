@@ -134,10 +134,10 @@ class Toolbar:
 
     # ==== 以下是分离的页面绘制函数 ====
 
-    def draw_ability_page(self, screen, icon_font, content_font, content_font_small,player):
-        self.Ability_tree.draw(screen, icon_font, content_font_small,player)
+    def draw_ability_page(self, screen , content_font ,player):
+        self.Ability_tree.draw(screen , player)
 
-    def draw_inventory_page(self, screen, icon_font, content_font, content_font_small,player=None):
+    def draw_inventory_page(self, screen, content_font , player=None):
         content_lines = [
             "这里是你的物品背包",
             "可以存放武器、装备和道具",
@@ -147,10 +147,10 @@ class Toolbar:
             text_surface = content_font.render(line, True, WHITE)
             screen.blit(text_surface, (50, 100 + i * 25))
 
-    def draw_character_page(self, screen, icon_font, content_font, content_font_small,player=None):
+    def draw_character_page(self, screen ,content_font ,player=None):
         self.draw_character(screen)
 
-    def draw_settings_page(self, screen, icon_font, content_font, content_font_small,player=None):
+    def draw_settings_page(self, screen, content_font ,player=None):
         content_lines = [
             "调整游戏设置和选项",
             "包括音效、画质和操作设置",

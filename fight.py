@@ -445,19 +445,113 @@ class FightScene:
             cooldown_surface = arrow_font.render(line, True, GRAY)
             screen.blit(cooldown_surface, (arrow_x, arrow_y + 10))
         if type =="Enemy1":
-            for index in pawn.action_sequence:
-                weapon = pawn.weapons[index]
-                intent_surface = arrow_font.render(f"{weapon.name}({weapon.damage})", True, RED)
-                screen.blit(intent_surface, (arrow_x, arrow_y + 30))
-                weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png")
-                render_1bit_sprite(screen, weapon_image, (arrow_x -20, arrow_y + 30), RED)
-                arrow_y += 15
-            if pawn.adding:
-                intent_surface = arrow_font.render("+", True, RED)
-                screen.blit(intent_surface, (arrow_x, arrow_y + 30))
+            self.draw_intents(screen,pawn,pos=(center_x, center_y))
+        
+
+    # def draw_intents(self, screen , pawn , pos ):
+    #     intent_x= pos[0] - 20
+    #     intent_y= pos[1] - 70
+    #     font = get_font("en","Patriot",16)
+    #     for index in pawn.action_sequence:
+    #         weapon = pawn.weapons[index]
+    #         intent_surface = font.render(f"{weapon.name}({weapon.damage})", True, RED)
+    #         screen.blit(intent_surface, (intent_x,intent_y))
+    #         weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png")
+    #         render_1bit_sprite(screen, weapon_image, (intent_x -20, intent_y), RED)
+    #         intent_y -= 15
+    #     if pawn.adding:
+    #             intent_surface = font.render("+", True, RED)
+    #             screen.blit(intent_surface, (intent_x, intent_y))
+    #             intent_y -= 15
+
+    #     line = ""
+    #     if pawn.waiting:
+    #         line += "!"
+    #     if pawn.ready_to_attack:
+    #         line += "!!!"
+        
+    #     text_surface = self.small_font.render(line, True, RED)
+    #     screen.blit(text_surface, (intent_x, intent_y))
+
+    def draw_intents(self, screen, pawn, pos):
+        intent_x = pos[0] 
+        intent_y = pos[1] - 90
+
+        mouse_pos = pygame.mouse.get_pos()
+        hovered_weapon = None  # 当前悬停的武器
+        weapon_color = GREEN if pawn.ready_to_attack else RED
+
+        for index in pawn.action_sequence:
+            weapon = pawn.weapons[index]
+            weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png",(48,48))
+
+            # 绘制图标
+            rect = weapon_image.get_rect(topleft=(intent_x - 24, intent_y))
+            render_1bit_sprite(screen, weapon_image, rect.topleft, weapon_color)
+            font = get_font("en", "DOS", 16)
+            screen.blit(font.render(f"{weapon.damage}", True, WHITE), (intent_x - 24, intent_y + 30))
+
+            # 如果鼠标悬停在这个图标上
+            if rect.collidepoint(mouse_pos):
+                hovered_weapon = weapon
+
+            intent_y -= 48  # 间距调整
+
+        # 加号（正在添加新动作）
+        if pawn.adding:
+            plus_surface = self.small_font.render("+", True, RED)
+            screen.blit(plus_surface, (intent_x, intent_y))
+            intent_y -= 48
+
+        # 状态标记
+        line = ""
+        if pawn.waiting:
+            line += "!"
+        if pawn.ready_to_attack:
+            line += "!!!"
+
+        if line:
+            text_surface = self.small_font.render(line, True, weapon_color)
+            screen.blit(text_surface, (intent_x-10, intent_y + 20))
+
+        # ==============================
+        # 悬停时绘制武器详细信息 Tooltip
+        # ==============================
+        if hovered_weapon:
+            self.draw_weapon_tooltip(screen, hovered_weapon, mouse_pos)
+
+    def draw_weapon_tooltip(self, screen, weapon, pos):
+        
+        """在鼠标位置显示武器信息"""
+        lines = [
+            f"{weapon.name}",
+            f"Damage: {weapon.damage}",
+            f"Range: {getattr(weapon, 'range', 'N/A')}",
+            f"Type: {weapon.weapon_type}"
+        ]
+
+        padding = 5
+        width = 200
+        height = len(lines) * 18 + padding * 2
+
+        x, y = pos
+        rect = pygame.Rect(x + 15, y + 15, width, height)
+
+        # 黑底
+        pygame.draw.rect(screen, (0, 0, 0), rect)
+
+        # 多层发光描边（外圈先画深色，内圈画亮色）
+        pygame.draw.rect(screen,GREEN, rect, 1)               # 明亮红线
 
 
-
+        # 文本
+        for i, line in enumerate(lines):
+            if i==0:
+                font = get_font("en", "Patriot", 24)
+            else:
+                font = self.small_font
+            text_surface = font.render(line, True, WHITE)
+            screen.blit(text_surface, (rect.x + padding, rect.y + padding + i * 18))
 
     def draw_ui(self,screen):
         # 绘制玩家血量,假设最大血量是 10 格
@@ -519,29 +613,11 @@ class FightScene:
 
         # 清理过期消息
         for msg in to_remove:
-            self.messages.remove(msg)
-
-    def draw_intents(self, screen):
-        for enemy in self.enemies:
-            line = enemy.type 
-            # print(f"{enemy.position}:{enemy.waiting}")
-            if enemy.waiting:
-                line += "!"
-            if enemy.ready_to_attack:
-                line += "!!!"
-            
-            text_surface = self.small_font.render(line, True, RED)
-            position= self.get_cell_center(enemy.position)
-            new_pos = (position[0], position[1]-50)
-            screen.blit(text_surface, new_pos)
-
-            
+            self.messages.remove(msg)    
     
     def draw(self, screen):
         # 绘制网格
         self.draw_grid(screen)
-
-        self.draw_intents(screen)
         
         # 绘制实体
         self.draw_entities(screen)
