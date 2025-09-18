@@ -47,7 +47,7 @@ class Tab:
         text_surface = font.render(self.name, True, text_color)
         text_rect = text_surface.get_rect(center=self.rect.center)
         screen.blit(text_surface, text_rect)
-        render_1bit_sprite(screen, load_image(f"arts/sprite/{self.name}.png",(48,48)), (self.rect.x-3, self.rect.y), text_color)
+        render_1bit_sprite(screen, load_image(f"arts/sprite/{self.name}.png",(48,48)), (self.rect.x-3, self.rect.y-3), text_color)
         
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
@@ -92,8 +92,9 @@ class Toolbar:
         
         return tabs
     
-    def draw_tab_border(self, screen,icon_font,tabs):# 绘制按钮
+    def draw_tabs(self, screen,tabs):# 绘制按钮
         # 绘制装饰性边框
+        icon_font = get_font("en","Cogmind",20)
         pygame.draw.line(screen, WHITE, (0, SCREEN_HEIGHT - TOOLBAR_HEIGHT), 
                         (SCREEN_WIDTH, SCREEN_HEIGHT - TOOLBAR_HEIGHT), 3)
         
@@ -113,9 +114,9 @@ class Toolbar:
             if active_tab.name == "Ability":
                 self.Ability_tree.update(player)  # 研究进度逻辑
     
-    def draw(self, screen, icon_font, content_font, content_font_small): 
+    def draw(self, screen,content_font): 
         # 绘制标签边框
-        self.draw_tab_border(screen, icon_font, self.tabs)
+        self.draw_tabs(screen, self.tabs)
         
         # 如果有激活的标签页
         if self.tabs and self.active_tab_index is not None:
@@ -130,7 +131,7 @@ class Toolbar:
             }.get(active_tab.name, None)
 
             if draw_method:
-                draw_method(screen, icon_font, content_font, content_font_small,player=self.get_player_data())
+                draw_method(screen, content_font,player=self.get_player_data())
 
     # ==== 以下是分离的页面绘制函数 ====
 
@@ -186,10 +187,10 @@ class Toolbar:
         self.handle_hover_event(event)
 
     def draw_character(self,screen):
-        character = load_image('assets/programmer.jpg',(366,366))
+        character = load_image('assets/programmer.jpg',(736/4,736/4))
         screen.blit(character, (100, 100))
         Title_font=get_font("en","Cogmind",30)
-        content_font=get_font("en","DOS",30)
+        content_font=get_font("en","DOS",20)
         text_surface = Title_font.render("The harmful effect of programming", True, WHITE)
         screen.blit(text_surface, (50, 30))
         brain_pos=(300, 210)
@@ -259,7 +260,7 @@ class MainMenu:
 
     def draw(self, screen):
         screen.fill(BLACK)
-        menu_font=get_font("en","Patriot",50)
+        menu_font = get_font("en","Patriot",50)
         title_surface = menu_font.render("Simplicity is all YOU Need", True, WHITE)
         title_rect = title_surface.get_rect(center=(SCREEN_WIDTH//2, 100))
         screen.blit(title_surface, title_rect)
@@ -349,7 +350,6 @@ def main():
 
     en_Cogmind_20 = get_font("en", "Cogmind", 20)
     ch_Pixel_20 = get_font("ch", "Pixel", 20)
-    ch_Pixel_16 = get_font("ch", "Pixel", 16)
 
     # 创建战斗场景
     fight_scene = FightScene()
@@ -413,7 +413,7 @@ def main():
             screen.fill(BLACK)
             if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
                 fight_scene.draw(screen)
-            toolbar.draw(screen, en_Cogmind_20, ch_Pixel_20, ch_Pixel_16)
+            toolbar.draw(screen, ch_Pixel_20)
             help_system.draw(screen, ch_Pixel_20)
                 
 

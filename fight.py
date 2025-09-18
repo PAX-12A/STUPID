@@ -170,6 +170,8 @@ class FightScene:
             elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9]:
                 index = event.key - pygame.K_1
                 success, msg = self.player.try_add_weapon_to_sequence(index,self)
+                if success:
+                    self.end_player_turn()
                 self.add_message(msg) #666
             elif event.key == pygame.K_SPACE:
                 if self.player.action_sequence:
@@ -311,11 +313,31 @@ class FightScene:
             return  # 没有空位就不刷怪
 
         new_pos = random.choice(possible_positions)
-        enemy_type = random.choice(["melee", "range"])
-        new_enemy = Enemy(new_pos,enemy_type)
+        new_enemy = self.spawn_random_enemy(new_pos)
         new_enemy.on_move_check = self.handle_move
         self.enemies.append(new_enemy)
         # self.add_message("Enemy Arrived!")
+
+    def spawn_random_enemy(self , position, monster_id=None):
+        """从图纸库中生成敌人。"""
+        if monster_id is None:
+            monster_id = random.choice(list(MONSTER_LIBRARY.keys()))
+
+        print(f"Spawned Monster: {monster_id}")
+        data = MONSTER_LIBRARY[monster_id]
+        
+        enemy = Enemy(monster_id,position)
+        enemy.name = data["name"]
+        enemy.health = data["health"]
+        enemy.sequence_limit = data["sequence_limit"]
+        
+        # 绑定武器（假设你已有 WEAPON_LIBRARY）
+        enemy.weapons = [WEAPON_LIBRARY[w] for w in data["weapons"]]
+        
+        # 固定意图
+        enemy.intents = data["intents"]
+        
+        return enemy
 
     
     def end_player_turn(self):
@@ -446,32 +468,6 @@ class FightScene:
             screen.blit(cooldown_surface, (arrow_x, arrow_y + 10))
         if type =="Enemy1":
             self.draw_intents(screen,pawn,pos=(center_x, center_y))
-        
-
-    # def draw_intents(self, screen , pawn , pos ):
-    #     intent_x= pos[0] - 20
-    #     intent_y= pos[1] - 70
-    #     font = get_font("en","Patriot",16)
-    #     for index in pawn.action_sequence:
-    #         weapon = pawn.weapons[index]
-    #         intent_surface = font.render(f"{weapon.name}({weapon.damage})", True, RED)
-    #         screen.blit(intent_surface, (intent_x,intent_y))
-    #         weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png")
-    #         render_1bit_sprite(screen, weapon_image, (intent_x -20, intent_y), RED)
-    #         intent_y -= 15
-    #     if pawn.adding:
-    #             intent_surface = font.render("+", True, RED)
-    #             screen.blit(intent_surface, (intent_x, intent_y))
-    #             intent_y -= 15
-
-    #     line = ""
-    #     if pawn.waiting:
-    #         line += "!"
-    #     if pawn.ready_to_attack:
-    #         line += "!!!"
-        
-    #     text_surface = self.small_font.render(line, True, RED)
-    #     screen.blit(text_surface, (intent_x, intent_y))
 
     def draw_intents(self, screen, pawn, pos):
         intent_x = pos[0] 
@@ -656,4 +652,5 @@ class FightScene:
         self.game_state = "player_turn"
         self.turn_count = 0
         self.message = []
+
 

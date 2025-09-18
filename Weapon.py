@@ -25,6 +25,7 @@ class Weapon:
             self.current_cooldown -= 1
 
 
+
 weapon_info = {
     "Hello World": {
         "damage": 5,

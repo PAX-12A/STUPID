@@ -63,7 +63,6 @@ class Actor:
 
     def die(self, scene):
         """角色死亡的基础逻辑"""
-        print(f"Pawn has died.")
         self.health = 0  # 确保血量为 0
         self.alive = False
         self.remove_from_scene(scene)  # 从场景中移除角色
@@ -73,7 +72,6 @@ class Actor:
         if isinstance(self, Player):
             print(f"Removing player from the scene...")
         elif isinstance(self, Enemy):
-            print(f"Removing enemy from the scene...")
             scene.enemies.remove(self)  # 移除敌人
         else:
             print(f"Unknown actor type: {self.name}")
@@ -92,7 +90,6 @@ class Actor:
             elif self.weapons[index].is_ready():
                 self.action_sequence.append(index)
                 self.sequence_length += 1
-                scene.end_player_turn()
                 return True, f"{weapon.name} Added"
             else:
                 return False, f"{weapon.name} Cooling!"
@@ -148,34 +145,11 @@ class Player(Actor):
     def die(self,scene):
         """玩家死亡时的特殊逻辑"""
         super().die(scene)  # 调用父类的 die() 处理基本死亡逻辑
-        print("Game Over. You have died.")  # 显示游戏结束提示
         scene.game_state = "game_over"   # ✅ 切换游戏状态，而不是删掉 player
 
     def game_over(self):
         """游戏结束的逻辑"""
         print("Ending the game...")
-
-    def apply_skill_effect(self, player, skill_name):
-        if skill_name == "Hello world":
-            player.damage_multiplier = 1.2
-            player.unlocked_skills.add(skill_name)
-
-        elif skill_name == "C++":
-            fireball = Weapon("C++", 5, [1, 2, 3, 4, 5, 6,7, 8], 8, RED, weapon_type="melee", unique_in_sequence=True)
-            player.unlock_weapon(fireball)
-            player.unlocked_skills.add(skill_name)
-
-        elif skill_name == "stack":
-            player.unlocked_skills.add("stack")
-            player.battle_style = "stack"  # 改变执行顺序
-            player.damage_multiplier = 1.2  # 可选：stack流派加伤
-
-        elif skill_name == "queue":
-            player.unlocked_skills.add("queue")
-            player.sequence_limit += 2
-
-        else:
-            print(f"技能 {skill_name} 尚未实现效果")
 
     def unlock_weapon(self, weapon_name):
         if weapon_name not in self.weapons:
@@ -215,20 +189,27 @@ class Player(Actor):
         return True
 
 class Enemy(Actor):
-    def __init__(self, position=5 , enemy_type="melee"):
-        super().__init__(position, health=30, sequence_limit=3)
-        self.weapons = [
-            Weapon("claw", 10, [1], 0, RED, weapon_type="melee"),
-            Weapon("Spear", 5, [1,2], 2, GREEN, weapon_type="melee"),
-            Weapon("Fireball", 15, [-1,0,1], 1, GREEN, weapon_type="fireball",range=5),
-            Weapon("Arrow",13,[1],1,RED,weapon_type="ranged",range=9),
-            Weapon("Dash",8,[1],1,RED,weapon_type="dash_to_enemy",range=3),
-        ]
+    def __init__(self,monster_id,position=5):
+        monster_data = MONSTER_LIBRARY[monster_id]
+        super().__init__(position, 
+                         health=monster_data["health"], 
+                         sequence_limit=monster_data["sequence_limit"])
+
+        self.name = monster_data["name"]
+        self.type = monster_data["type"]
+
+        # 根据怪物表装载武器
+        self.weapons = [WEAPON_LIBRARY[w] for w in monster_data["weapons"]]
+
+        # 怪物的固定意图（技能组合）
+        self.intents = monster_data.get("intents", [])
+        self.intent_index = 0           # 当前执行到第几个意图
+        self.intent_progress = 0        # 当前意图中的武器进度
+
         self.waiting = False  
         self.ready_to_attack = False
         self.adding = False
         self.moving = False
-        self.type = enemy_type
         
 
     def die(self,scene):
@@ -236,6 +217,42 @@ class Enemy(Actor):
         super().die(scene)  # 调用父类的 die() 处理基本死亡逻辑
         print(f"Enemy dropped loot!")  # 显示敌人掉落物品提示
         # 这里可以增加掉落物品的逻辑
+
+    def execute_intent(self, scene):
+        """逐回合执行当前意图"""
+        if not self.intents:
+            return
+
+        current_intent = self.intents[self.intent_index]
+
+        # 还没放完 → 本回合放一个
+        if self.intent_progress < len(current_intent):
+            weapon_name = current_intent[self.intent_progress]
+            weapon_index = self.get_weapon_index(weapon_name)
+
+            if weapon_index is not None:
+                success, msg = self.try_add_weapon_to_sequence(weapon_index, scene)
+                print(msg)
+                if success:
+                    self.intent_progress += 1
+                    self.adding = False
+                    if self.intent_progress == len(current_intent) :
+                        self.waiting = True
+
+            return False
+
+        # 当前意图完成 → 切换到下一个
+        self.intent_progress = 0
+        self.intent_index = (self.intent_index + 1) % len(self.intents)
+        return True
+
+    def get_weapon_index(self, weapon_name):
+        for i, w in enumerate(self.weapons):
+            if w.name == weapon_name:
+                return i
+        return None
+    
+
 
     def ai_take_turn(self, scene):
         player = scene.player
@@ -252,110 +269,42 @@ class Enemy(Actor):
                 # --- 不能命中，先调整方向 ---
                 if not self.is_facing_player(player):
                     self.turn_around()
-                    scene.add_message(f"Enemy turn around")
-                else:
-                    if self.moving:
-                        self.move(self.direction)
-                        self.moving = False
-                    else:
-                        self.moving = True 
+                    # scene.add_message(f"Enemy turn around")
+                elif self.moving:#再试图移动（如果已经在之前展示了移动的意图）
+                    self.move(self.direction)
+                    self.moving = False
+                else: #展示移动的意图
+                    self.moving = True 
             return
-        elif self.ready_to_attack :
-            # 施放攻击
-            scene.execute_actions(self)
+        elif self.ready_to_attack :# 之前一回合展示即将攻击            
+            scene.execute_actions(self)# 施放攻击
             self.ready_to_attack=False        
         else:
-            if self.adding :                
-                # --- 没有攻击序列：添加武器并进入 waiting ---
-                if self.type == "melee" :
-                    weapon_index = random.randint(0,1)# random weapon
-                elif self.type == "range":
-                    weapon_index = random.randint(2,3)# random weapon    
-                self.add_weapon_to_sequence(weapon_index, scene)
-                
-                if self.sequence_length > 1:
-                    self.waiting = True
-                self.adding = False
+            if self.adding:# 展示过即将添加武器的意图                
+                print(self.intents)
+                self.execute_intent(scene)# 执行意图  
             else:
                 self.adding = True
-
-    def add_weapon_to_sequence(self, index, scene):
-        if index < len(self.weapons):
-            weapon = self.weapons[index]
-            if weapon.unique_in_sequence and any(weapon_index == index for weapon_index in self.action_sequence):
-                return False
-            if self.sequence_length >= self.sequence_limit:
-                return False
-            elif self.weapons[index].is_ready():
-                self.action_sequence.append(index)
-                self.sequence_length += 1
-                return True
-            else:
-                return False
-        return False, "无效的武器编号"
     
     def is_facing_player(self, player):
         return (self.direction == 1 and player.position > self.position) or \
             (self.direction == -1 and player.position < self.position)
     
-    def can_hit_player(self, player, scene):#临时的方案，实际和怪物种类相关
+    def can_hit_player(self, player, scene):#临时的方案
         """检查当前方向 & 攻击模式能否命中玩家"""
         if player:
             distance = abs(self.position - player.position)
             if self.is_facing_player(player):
+                # print(self.type)
                 if self.type == "melee":
                     return distance <= 1
                 elif self.type == "range":
                     if scene.can_see(self,player):
-                        print(f"Weapon Range:{self.weapons[0].range}, :{self.action_sequence[0]}")
-                        return distance <= self.action_sequence[0]
+                        print(f"Weapon Range:{self.weapons[0].range}, :{self.weapons[self.action_sequence[0]].range}")
+                        if self.weapons[self.action_sequence[0]].range!=None:
+                            return distance <= self.weapons[self.action_sequence[0]].range
         return False
     
-class AggressiveAI:
-    """近战AI：追击并攻击玩家"""
-    def decide_action(self, enemy, scene):
-        player = scene.player
-        weapon = enemy.weapons[0]  # 假设永远第0个武器是近战
-
-        # 距离判断
-        if abs(player.position - enemy.position) <= max(weapon.range or 1, 1):
-            enemy.add_weapon_to_sequence(0, scene)
-            scene.add_message(f"{enemy} slashes with {weapon.name}!")
-            scene.execute_actions(enemy)
-        else:
-            # 靠近玩家
-            direction = 1 if player.position > enemy.position else -1
-            enemy.move(direction)
-
-
-class RangedAI:
-    """远程AI：保持距离射击"""
-    def decide_action(self, enemy, scene):
-        player = scene.player
-        weapon = enemy.weapons[0]  # 永远第0个武器是远程
-        distance = abs(player.position - enemy.position)
-
-        if distance <= weapon.range and weapon.is_ready():
-            enemy.add_weapon_to_sequence(0, scene)
-            scene.add_message(f"{enemy} shoots a {weapon.name}!")
-            scene.execute_actions(enemy)
-        else:
-            # 保持拉扯
-            if distance < weapon.range // 2:
-                enemy.move(-enemy.direction)
-            else:
-                enemy.move(enemy.direction if player.position > enemy.position else -enemy.direction)
-
-# def spawn_enemy(enemy_type, position):
-#     if enemy_type == "goblin":
-#         return Goblin(position)
-#     elif enemy_type == "archer":
-#         return Archer(position)
-#     else:
-#         raise ValueError(f"Unknown enemy type: {enemy_type}")
-# enemy = spawn_enemy("archer", position=8)
-# scene.enemies.append(enemy)
-
 class SkillEffect:
     """技能效果对象"""
     def __init__(self, name, apply_func):
@@ -380,9 +329,50 @@ class SkillLibrary:
     
     def init_skills():
         SkillLibrary.register("toughness", lambda p: setattr(p, "max_health", p.max_health + 20))
-        SkillLibrary.register("fire_mastery", lambda p: p.skill_effects.update({"fire_bonus": 1.5}))
+        SkillLibrary.register("queue", lambda p: setattr(p, "sequence_limit", p.sequence_limit + 1))
         SkillLibrary.register("Greenhand", lambda p: setattr(p, "max_health", p.max_health + 20))
         SkillLibrary.register("Hello world", lambda p: setattr(p, "sequence_limit", p.sequence_limit + 1))
 
+MONSTER_LIBRARY = {
+    "DDL":{
+        "name": "DDL Fiend",
+        "health": 25,
+        "type": "range",
+        "sequence_limit": 3,
+        "weapons": ["Fireball", "Arrow"],
+        "intents": [
+            ["Fireball"],
+            ["Arrow"]
+        ]
+    },
+    "GPA" : {
+        "name": "GPA Phantom",
+        "health": 30,
+        "type": "range",
+        "sequence_limit": 3,
+        "weapons": ["Dash", "Claw"],
+        "intents": [
+            ["Dash", "Claw"],
+            ["Claw"]
+        ]
+    },
+    "Money" : {
+        "name": "Money Ogre",
+        "health": 40,
+        "type": "melee",
+        "sequence_limit": 3,
+        "weapons": ["Spear","Claw"],
+        "intents": [
+            ["Spear"],
+            ["Spear", "Claw"]
+        ]
+    }
+}
 
-
+WEAPON_LIBRARY = {
+    "Claw": Weapon("Claw", 10, [1], 0, RED, weapon_type="melee"),
+    "Spear": Weapon("Spear", 5, [1,2], 2, GREEN, weapon_type="melee",unique_in_sequence=False),
+    "Fireball": Weapon("Fireball", 15, [-1,0,1], 1, GREEN, weapon_type="fireball", range=5),
+    "Arrow": Weapon("Arrow", 13, [1], 1, RED, weapon_type="ranged", range=9),
+    "Dash": Weapon("Dash", 8, [1], 1, RED, weapon_type="dash_to_enemy", range=5),
+}
