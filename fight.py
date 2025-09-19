@@ -229,6 +229,7 @@ class FightScene:
                         pawn = self.get_pawn_at(position,pawn_type="all")
                         if pawn:
                             pawn.take_damage(actual_damage,scene=self)
+                            actor.apply_weapon_effects(pawn, weapon)
 
     def attack_by_pattern(self,weapon,actual_damage,actor):
 
@@ -236,8 +237,10 @@ class FightScene:
         for enemy in self.enemies[:]:
             if enemy.position in attack_positions:
                 enemy.take_damage(actual_damage,scene=self)
+                actor.apply_weapon_effects(enemy, weapon)
         if self.player.position in attack_positions:
             self.player.take_damage(actual_damage,scene=self)
+            actor.apply_weapon_effects(self.player, weapon)
 
 
     def shoot(self, weapon,actual_damage,actor):
@@ -251,6 +254,7 @@ class FightScene:
         distance = abs(closest_enemy.position - actor.position)
 
         closest_enemy.take_damage(actual_damage,scene=self)
+        actor.apply_weapon_effects(closest_enemy, weapon)
 
         # 超出最大射程
         if distance > weapon.range:
@@ -352,6 +356,8 @@ class FightScene:
         if self.game_state != "game_over":
             self.game_state = "enemy_turn"
         self.turn_count += 1
+
+        self.player.update_statuses()#更新状态
         
         # 每10回合刷2个敌人
         if self.turn_count % 10 == 0:
@@ -372,19 +378,6 @@ class FightScene:
     
     def execute_enemy_turn(self,scene):
         for enemy in self.enemies:
-            # attack_pos = enemy.execute_attack()
-            # if attack_pos and self.player.position in attack_pos:
-            #     self.player.take_damage(6)
-            #     # 添加一个永久脑损伤（疾病类状态）
-            #     self.player.add_status(Status("Simplified", "brain", is_illness=True))
-            #     self.player.add_status(Status("PC addict", "brain", is_illness=True))
-            #     self.player.add_status(Status("Diabetes", "wholebody", is_illness=True))
-            #     self.player.add_status(Status("Sad", "brain", is_illness=False))
-            #     self.add_message("You Are Under Atack! (-6)")
-            #     if self.player.health <= 0:
-            #         self.game_state = "game_over"
-            #         self.add_message("游戏结束!", 300)
-            #         return
             enemy.ai_take_turn(scene)
             self.end_enemy_turn()
         
@@ -425,15 +418,21 @@ class FightScene:
             pygame.draw.rect(screen,SHADOW, (health_x, health_y, health_width, 6))
             pygame.draw.rect(screen, WHITE, (health_x, health_y, int(health_width * health_ratio), 6))
 
-            self.draw_character_with_arrow(screen, enemy ,"Enemy1")
+            self.draw_character_with_arrow(screen, enemy ,"Enemy")
 
     def draw_character_with_arrow(self, screen , pawn, type):
         arrow_font = get_font("ch","Lolita")
+        
         # 加载图片
         if type =="Hero":
-            character = load_image('assets/hero.png')
-        elif type == "Enemy1":
-            character = load_image('assets/Enemy1.png')
+            character = load_image('arts/sprite/Character/hero.png')
+        elif type == "Enemy":
+            try:
+                # 尝试加载与敌人名字对应的图片
+                character = load_image(f"arts/sprite/Character/{pawn.name}.png",(48,48))
+            except FileNotFoundError:
+                # 如果文件不存在，加载默认图
+                character = load_image("arts/sprite/Character/enemy.png")
 
         if hasattr(pawn,"moving") and pawn.moving:
             arrow_color = GREEN
@@ -466,7 +465,7 @@ class FightScene:
             line= "#" * pawn.swap_cooldown
             cooldown_surface = arrow_font.render(line, True, GRAY)
             screen.blit(cooldown_surface, (arrow_x, arrow_y + 10))
-        if type =="Enemy1":
+        if type =="Enemy":
             self.draw_intents(screen,pawn,pos=(center_x, center_y))
 
     def draw_intents(self, screen, pawn, pos):
@@ -565,7 +564,7 @@ class FightScene:
         weapon_y = 10
         for i, weapon in enumerate(self.player.weapons):
             color = GREEN if weapon.is_ready() else RED
-            cooldown_text = f"Cooldown: {weapon.current_cooldown}" if not weapon.is_ready() else "Ready"
+            cooldown_text = f"{weapon.damage},{weapon.current_cooldown}" if not weapon.is_ready() else f"{weapon.damage},Ready"
             
             weapon_text = self.small_font.render(f"{i+1}.    {weapon.name} ({cooldown_text})", True, color)
             screen.blit(weapon_text, (10, weapon_y + i * 30))
@@ -629,21 +628,25 @@ class FightScene:
             self.game_over(screen)
 
     def game_over(self,screen):
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        overlay.set_alpha(128)
-        overlay.fill(WHITE)
-        screen.blit(overlay, (0, 0))
+        # overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        # overlay.set_alpha(128)
+        # overlay.fill(WHITE)
+        # screen.blit(overlay, (0, 0))
+        screen.fill(BLACK)
         
         if not self.enemies:
             end_text = self.large_font.render("Congratulations!", True, GREEN)
         else:
             end_text = self.font.render("You Failed!", True, RED)
+            render_ascii_art(screen, label="grave",x=100, y=200, font_size=24, color=WHITE)
+            character = load_image('arts/grave.png')
+            screen.blit(character, (800, 50))
         
-        end_rect = end_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2+100))
+        end_rect = end_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2+200))
         screen.blit(end_text, end_rect)
         
-        restart_text = self.font.render("Press q to return Menu,r to restart", True, BLACK)
-        restart_rect = restart_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 120))
+        restart_text = self.font.render("Press q to return Menu,r to restart", True, WHITE)
+        restart_rect = restart_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 220))
         screen.blit(restart_text, restart_rect)    
     
     def restart_game(self):

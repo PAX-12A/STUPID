@@ -1,6 +1,6 @@
 from colors import *
 class Weapon:
-    def __init__(self, name, damage, pattern, cooldown, color,weapon_type="melee",unique_in_sequence=True,range=None):
+    def __init__(self, name, damage, pattern, cooldown, color,weapon_type="melee",unique_in_sequence=True,range=None,status_effects=None):
         self.name = name
         self.damage = damage
         self.pattern = pattern  # 相对于玩家位置的攻击范围
@@ -10,6 +10,7 @@ class Weapon:
         self.weapon_type = weapon_type  # 新增字段：melee / ranged / targeted
         self.unique_in_sequence = unique_in_sequence
         self.range=range
+        self.status_effects = status_effects or []  # 支持多个状态效果
     
     def is_ready(self):
         return self.current_cooldown == 0
@@ -23,8 +24,6 @@ class Weapon:
     def update_cooldown(self):
         if self.current_cooldown > 0:
             self.current_cooldown -= 1
-
-
 
 weapon_info = {
     "Hello World": {

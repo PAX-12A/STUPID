@@ -5,24 +5,90 @@ from colors import *
 from Weapon import Weapon,weapon_info
 
 class Status:
-    def __init__(self, name, body_part, is_temp=False, is_illness=False, duration=None):
+    def __init__(self, name, body_part, duration= 5,is_temp=True, is_illness=False, stack=1, unique=True):
         self.name = name                  # 状态名称，例如 "中毒"、"骨折"
         self.body_part = body_part        # 作用部位，例如 "brain"、"wholebody"、"left_arm"
         self.is_temp = is_temp            # 是否临时（True = 怪物施加/短期状态）
-        self.is_illness = is_illness      # 是否疾病
         self.duration = duration          # 持续回合数（None 代表永久）
+        self.stack = stack                # 层数，叠加代表强度
+        self.unique = unique              # 是否唯一（同名不可重复）
+        self.is_illness = is_illness      # 是否疾病
+        
     
-    def update(self):
-        """每回合减少持续时间，临时状态到0就消失"""
+    def update(self, owner):
+        """每回合更新，返回 True 表示状态消失"""
+        # if self.is_illness:
+        #     return False  # 疾病不会自然消失
+        
+        # Stress 特殊处理
+        if self.name == "Stress" and self.stack >= 3:
+            illness = self.convert(owner)
+            if illness:
+                return True  # Stress 转化后消失
+        
+        # 常规持续时间逻辑
         if self.duration is not None:
             self.duration -= 1
             if self.duration <= 0:
-                return True  # 返回 True 表示需要移除
+                self.stack -= 1
+                if self.stack <= 0:
+                    return True
+                else:
+                    self.duration = self.reset_duration()
         return False
 
+
     def __repr__(self):
-        return f"<Status {self.name} on {self.body_part}>"
+        if self.duration is None:
+            return f"<Status {self.name} ({self.magnitude}) PERMANENT>"
+        return f"<Status {self.name} ({self.stack}), {self.duration} turns>"
     
+    def copy(self):
+        """创建一个新的独立副本"""
+        return Status(
+            self.name,
+            self.body_part,
+            duration=self.duration,
+            is_illness=self.is_illness,
+            stack=self.stack, 
+            unique=self.unique, 
+            is_temp=self.is_temp
+        )
+    
+    def reset_duration(self):
+        """每层的独立持续时间，可以自定义"""
+        return 50 if self.is_illness else 5 # 例如每层 Stress 默认 5 回合
+    
+    def convert(status, owner):
+        """将 Stress 转化为疾病"""
+        if status.name != "Stress":
+            return None  # 只处理 Stress
+        
+        body_part = status.body_part
+        diseases = DISEASE_CONVERSION_TABLE.get(body_part, [])
+        if not diseases:
+            return None  # 没有对应疾病
+        
+        # 转化概率：随着 stacks 增加而提高
+        chance = min(0.2 * (status.stack - 2), 0.9)  
+        # 例: 3层=20%，4层=40%，5层=60%，上限90%
+        
+        if random.random() < chance:
+            new_disease_name = random.choice(diseases)
+            illness = Status(new_disease_name, body_part, is_illness=True,duration=50)
+            owner.add_status(illness)
+            print(f"[!] {owner} 的 {status.stack} 层压力转化为 {illness.name}")
+            return illness
+        
+        return None
+    
+DISEASE_CONVERSION_TABLE = {
+    "brain": ["Depression", "Insomnia", "Sleepy"],   # 抑郁、失眠、焦虑
+    "stomach": ["Gastritis", "Ulcer"],                # 胃炎、胃溃疡
+    "heart": ["Hypertension", "Arrhythmia"],          # 高血压、心律不齐
+    "wholebody": ["Diabetes", "Chronic Fatigue"],     # 糖尿病、慢性疲劳
+}
+
 class Actor:
     def __init__(self, position=0, health=100, sequence_limit=2):
         self.position = position
@@ -39,16 +105,28 @@ class Actor:
         self.on_move_check = None  # 回调（检测位置交换等）
         self.alive = True   # 是否存活
 
-    def add_status(self, status):
-        """添加状态，如果已有同名状态，可以覆盖或叠加"""
-        self.status.append(status)
+    def add_status(self, new_status):
+        """添加状态：如果 unique 且已有同名，就覆盖"""
+        if new_status.unique:
+            for s in self.status:
+                if s.name == new_status.name:
+                    s.duration = new_status.duration+s.duration
+                    s.stack = new_status.stack+s.stack
+                    return
+        self.status.append(new_status)
+        print("Added status:", new_status)
+
+    def apply_weapon_effects(self, target, weapon):
+        """应用武器的附加状态"""
+        for status in weapon.status_effects:
+            target.add_status(status.copy())
 
     def remove_status(self, status_name):
         self.status = [s for s in self.status if s.name != status_name]
 
     def update_statuses(self):
         """每回合更新所有状态"""
-        self.status = [s for s in self.status if not s.update()]
+        self.status = [s for s in self.status if not s.update(self)]
 
     def get_status_by_part(self, part):
         """获取某个部位的所有状态"""
@@ -60,6 +138,8 @@ class Actor:
         if self.health <= 0:
             self.die(scene)  # 传入场景来移除角色
         self.add_status(Status("Simplified", "brain", is_illness=True))#666
+        # self.add_status(Status("PC addict", "brain", is_illness=True))
+        # self.add_status(Status("Diabetes", "wholebody", is_illness=True))
 
     def die(self, scene):
         """角色死亡的基础逻辑"""
@@ -150,6 +230,7 @@ class Player(Actor):
     def game_over(self):
         """游戏结束的逻辑"""
         print("Ending the game...")
+
 
     def unlock_weapon(self, weapon_name):
         if weapon_name not in self.weapons:
@@ -281,7 +362,7 @@ class Enemy(Actor):
             self.ready_to_attack=False        
         else:
             if self.adding:# 展示过即将添加武器的意图                
-                print(self.intents)
+                # print(self.intents)
                 self.execute_intent(scene)# 执行意图  
             else:
                 self.adding = True
@@ -303,6 +384,9 @@ class Enemy(Actor):
                         print(f"Weapon Range:{self.weapons[0].range}, :{self.weapons[self.action_sequence[0]].range}")
                         if self.weapons[self.action_sequence[0]].range!=None:
                             return distance <= self.weapons[self.action_sequence[0]].range
+                        else :
+                            return distance <= 1
+
         return False
     
 class SkillEffect:
@@ -336,7 +420,7 @@ class SkillLibrary:
 MONSTER_LIBRARY = {
     "DDL":{
         "name": "DDL Fiend",
-        "health": 25,
+        "health": 15,
         "type": "range",
         "sequence_limit": 3,
         "weapons": ["Fireball", "Arrow"],
@@ -366,13 +450,26 @@ MONSTER_LIBRARY = {
             ["Spear"],
             ["Spear", "Claw"]
         ]
-    }
+    },
+    "BUG":{
+        "name": "BUG",
+        "health": 5,
+        "type": "range",
+        "sequence_limit": 3,
+        "weapons": ["Stack Overflow", "Compile Error"],
+        "intents": [
+            ["Stack Overflow"],
+            ["Compile Error"]
+        ]
+    },
 }
 
 WEAPON_LIBRARY = {
-    "Claw": Weapon("Claw", 10, [1], 0, RED, weapon_type="melee"),
-    "Spear": Weapon("Spear", 5, [1,2], 2, GREEN, weapon_type="melee",unique_in_sequence=False),
-    "Fireball": Weapon("Fireball", 15, [-1,0,1], 1, GREEN, weapon_type="fireball", range=5),
-    "Arrow": Weapon("Arrow", 13, [1], 1, RED, weapon_type="ranged", range=9),
-    "Dash": Weapon("Dash", 8, [1], 1, RED, weapon_type="dash_to_enemy", range=5),
+    "Claw": Weapon("Claw", 10, [1], 0, RED, weapon_type="melee",status_effects=[Status("Anxiety","brain")]),
+    "Spear": Weapon("Spear", 5, [1,2], 2, GREEN, weapon_type="melee",unique_in_sequence=False,status_effects=[Status("Stress", "brain",stack=3)]),
+    "Fireball": Weapon("Fireball", 8, [-1,0,1], 1, GREEN, weapon_type="fireball", range=5,status_effects=[Status("Anger", "brain")]),
+    "Arrow": Weapon("Arrow", 5, [1], 1, RED, weapon_type="ranged", range=9,status_effects=[Status("Stress", "brain")]),
+    "Dash": Weapon("Dash", 8, [1], 1, RED, weapon_type="dash_to_enemy", range=5,status_effects=[Status("Dizzy","brain")]),
+    "Stack Overflow": Weapon("Stack Overflow", 6, [1], 1, RED, weapon_type="ranged", range=9,status_effects=[Status("Stress","brain")]),
+    "Compile Error": Weapon("Compile Error", 10, [1], 1, RED, weapon_type="ranged", range=9,status_effects=[Status("Anxiety","brain")]),
 }

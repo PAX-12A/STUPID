@@ -4,7 +4,7 @@ from font_manager import get_font
 from fight import *
 from help import HelpSystem
 from colors import *
-import json
+
 
 # 初始化pygame
 pygame.init()
@@ -193,13 +193,13 @@ class Toolbar:
         content_font=get_font("en","DOS",20)
         text_surface = Title_font.render("The harmful effect of programming", True, WHITE)
         screen.blit(text_surface, (50, 30))
-        brain_pos=(300, 210)
-        body_pos=(350, 300)
-        TEXT_BEGIN_x= 550
-        TEXT_BEGIN_y= 550
+        # brain_pos=(300, 210)
+        # body_pos=(350, 300)
+        # TEXT_BEGIN_x= 550
+        # TEXT_BEGIN_y= 550
 
-        pygame.draw.line(screen, GRAY, brain_pos, (TEXT_BEGIN_x, 100), 5)
-        pygame.draw.line(screen, GRAY, body_pos, (TEXT_BEGIN_x, 300), 5)
+        # pygame.draw.line(screen, GRAY, brain_pos, (TEXT_BEGIN_x, 100), 5)
+        # pygame.draw.line(screen, GRAY, body_pos, (TEXT_BEGIN_x, 300), 5)
 
         data = self.get_player_data()  # 调用回调拿到玩家数据
         stats_lines = [
@@ -215,13 +215,13 @@ class Toolbar:
             text_surface = content_font.render(line, True, WHITE)
             screen.blit(text_surface, (start_x, start_y + i * line_height))
 
-        self.draw_status(screen,Title_font,500,100,data['status'])
+        self.draw_status(screen,content_font,500,100,data['status'])
 
     def draw_status(self,screen, font, x, y, status_list):
         # 先按 body_part 分类
         categorized = {}
         for s in status_list:
-            if s.is_illness:  # 只显示疾病类
+            # if s.is_illness:  # 只显示疾病类
                 categorized.setdefault(s.body_part, []).append(s)
 
         current_y = y
@@ -234,8 +234,8 @@ class Toolbar:
             # 绘制每个病
             for illness in illnesses:
                 # 假设 illness 有 duration 属性
-                name_line = f"{illness.name}({illness.duration})"
-                illness_text = font.render(name_line, True, WHITE)
+                name_line = f"{illness.name}({illness.stack},{illness.duration}t to reduce 1 layer)"
+                illness_text = font.render(name_line, True, GREEN if illness.is_illness else WHITE)
                 screen.blit(illness_text, (x + 20, current_y))
                 current_y += font.get_height() + 2
 
@@ -271,7 +271,7 @@ class MainMenu:
             if i == self.selected:
                 color = GREEN 
                 pic = f"girl{i+1}"
-                self.render_ascii_art(screen, label=pic, font_size=16, x=380, y=50, color=WHITE)
+                render_ascii_art(screen, label=pic, font_size=16, x=380, y=50, color=WHITE)
 
             image = load_image(f"arts/sprite/{self.options[i]}.png")
             render_1bit_sprite(screen, image, (380, 270 + i*50 - image.get_width()//2), color)
@@ -279,27 +279,6 @@ class MainMenu:
             text_rect = text_surface.get_rect(center=(SCREEN_WIDTH//2, 270 + i*50))
             screen.blit(text_surface, text_rect)
             
-    def render_ascii_art(self, screen, label, font_size=16, x=10, y=20, color=WHITE):
-        # 加载 ASCII art 索引
-        with open("ASCII.json", "r", encoding="utf-8") as f:
-            arts = json.load(f)
-
-        # 查找对应标签
-        art_entry = next((a for a in arts if a["label"] == label), None)
-        if not art_entry:
-            print(f"[!] 未找到标签: {label}")
-            return
-
-        # 从文件加载 ASCII 内容
-        with open(art_entry["file"], "r", encoding="utf-8") as f:
-            lines = f.readlines()
-
-        # 渲染
-        font = pygame.font.Font("Saitamaar-Regular.ttf", font_size)
-        for i, line in enumerate(lines):
-            text_surface = font.render(line.rstrip("\n"), False, color)  # False = 关闭抗锯齿
-            screen.blit(text_surface, (x, y + i * font_size))
-
 
     def intro(self,screen):
         screen.fill(BLACK)

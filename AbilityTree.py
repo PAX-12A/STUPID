@@ -285,7 +285,7 @@ class TechTree:
             
         # 绘制选中节点的详细信息
         if self.selected_node:
-            self.draw_node_info(screen ,font, font)
+            self.draw_node_info(screen)
 
         data = self.get_player_data()  # 调用回调拿到玩家数据
         point_lines = [
@@ -323,7 +323,7 @@ class TechTree:
 
                 # 绘制选中节点的详细信息
         if self.selected_node:
-            self.draw_node_info(screen,font,font)
+            self.draw_node_info(screen)
             
         
     def draw(self, screen , player):
@@ -343,7 +343,7 @@ class TechTree:
 
         
        
-    def draw_node_info(self, screen, font , small_font):
+    def draw_node_info(self, screen):
         node = self.selected_node
         info_x = 50
         info_y = 400
@@ -370,51 +370,52 @@ class TechTree:
         
         # 节点名称
         f1=get_font("ch", "Pixel", 20)
+        f2=get_font("en", "Cogmind", 16)
         name_surface = f1.render(node.name, True, WHITE)#要用中文字体
-        status_surface = font.render(status, True, WHITE)#用英文字体，紧跟在name后面
+        status_surface = f2.render(status, True, WHITE)#用英文字体，紧跟在name后面
         name_width = name_surface.get_width()
         screen.blit(name_surface, (info_x + 10, y_offset))
         screen.blit(status_surface, (info_x + 10 + name_width + 10, y_offset))
         y_offset += 30
         
         # 描述信息
-        desc_line_surface = small_font.render(node.description, True, WHITE)
+        desc_line_surface = f1.render(node.description, True, WHITE)
         screen.blit(desc_line_surface, (info_x + 10, y_offset))
         y_offset += 18
             
         # 前置需求
         if node.prerequisites:
             y_offset += 10
-            prereq_surface = small_font.render("前置需求:", True, WHITE)
+            prereq_surface = f1.render("前置需求:", True, WHITE)
             screen.blit(prereq_surface, (info_x + 10, y_offset))
             y_offset += 18
             
             for prereq in node.prerequisites:
                 color = WHITE if prereq in self.researched else (200, 150, 150)
-                prereq_surface = small_font.render(f"*{prereq}", True, color)
+                prereq_surface = f1.render(f"*{prereq}", True, color)
                 screen.blit(prereq_surface, (info_x + 15, y_offset))
                 y_offset += 16
 
         # 技能
         if node.unlock_skills:
             y_offset += 10
-            skills_surface = small_font.render("解锁技能:", True, WHITE)
+            skills_surface = f1.render("解锁技能:", True, WHITE)
             screen.blit(skills_surface, (info_x + 10, y_offset))
             y_offset += 18
 
             # 拼接技能名
             skill_text = ", ".join(node.unlock_skills)
-            skills_surface = small_font.render(skill_text, True, WHITE)
+            skills_surface = f1.render(skill_text, True, WHITE)
             screen.blit(skills_surface, (info_x + 15, y_offset))
             y_offset += 18
 
         if hasattr(node, "weapon") and node.weapon:
             y_offset += 10
-            weapon_surface = small_font.render("解锁武器:", True, WHITE)
+            weapon_surface = f1.render("解锁武器:", True, WHITE)
             screen.blit(weapon_surface, (info_x + 10, y_offset))
             y_offset += 18
 
-            weapon_surface = small_font.render(node.weapon, True, WHITE)
+            weapon_surface = f1.render(node.weapon, True, WHITE)
             screen.blit(weapon_surface, (info_x + 15, y_offset))
             y_offset += 18
             girl_img= load_image("arts/weapon_girl.png", (273,273))
@@ -538,7 +539,7 @@ class TechTree:
 # 定义每级科技 (名称, 行位置, 描述, 前置需求 , 技能)
 tech_levels = {
     1: [  # 第一列 - 基础课程
-        ("高级语言程设", 0, "你终于学会了如何向世界说出 Hello, world！（解锁编程交互）副作用：开始把生活当成命令行。", [],["Hello world","C++"]),
+        ("高级语言程设", 0, "你终于学会了如何向世界说出 Hello, world！（解锁编程交互）副作用：开始把生活当成命令行。", [],["Hello world","Pointer"]),
         ("计算机导论", 1, "你大致了解计算机的组成与职业前景。副作用：成为'天选打螺丝的人'。", [], []),
         ("线性代数", 2, "逻辑能力+1，但你开始用真值表分析社交。", [], ["Matrix"]),
         ("高等数学", 2.5, "你能处理复杂计算，但开始怀疑微积分的实际意义。", [], ["Calculus"]),
