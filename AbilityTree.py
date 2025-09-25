@@ -327,7 +327,6 @@ class TechTree:
             
         
     def draw(self, screen , player):
-        icon_font = get_font("en", "Cogmind", 20)
         Toolbar.draw_tabs(self, screen, self.tabs)
 
         subview = self.get_active_tab_name()

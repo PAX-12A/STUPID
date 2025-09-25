@@ -26,7 +26,7 @@ class Tab:
         self.is_active = False
         self.is_hovered = False
         
-    def draw(self, screen, font):
+    def draw(self, screen, font,img=True):
         # 选择颜色
         if self.is_active:
             color = WHITE
@@ -47,7 +47,8 @@ class Tab:
         text_surface = font.render(self.name, True, text_color)
         text_rect = text_surface.get_rect(center=self.rect.center)
         screen.blit(text_surface, text_rect)
-        render_1bit_sprite(screen, load_image(f"arts/sprite/{self.name}.png",(48,48)), (self.rect.x-3, self.rect.y-3), text_color)
+        if img:
+            render_1bit_sprite(screen, load_image(f"arts/sprite/{self.name}.png",(48,48)), (self.rect.x-3, self.rect.y-3), text_color)
         
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
@@ -85,14 +86,14 @@ class Toolbar:
                 tab_x = x
                 tab_y = y + i * (TAB_HEIGHT + spacing)
             else:
-                raise ValueError("direction 应该为 'horizontal' 或 'vertical'")
+                raise ValueError("direction not valid")
             
             tab = Tab(name, tab_x, tab_y)
             tabs.append(tab)
         
         return tabs
     
-    def draw_tabs(self, screen,tabs):# 绘制按钮
+    def draw_tabs(self, screen,tabs,img=True):# 绘制按钮
         # 绘制装饰性边框
         icon_font = get_font("en","Cogmind",20)
         pygame.draw.line(screen, WHITE, (0, SCREEN_HEIGHT - TOOLBAR_HEIGHT), 
@@ -100,7 +101,7 @@ class Toolbar:
         
         # 绘制所有标签
         for tab in tabs:
-            tab.draw(screen, icon_font)
+            tab.draw(screen, icon_font, img)
     
     def close_all_tabs(self):
         for tab in self.tabs:
@@ -215,7 +216,17 @@ class Toolbar:
             text_surface = content_font.render(line, True, WHITE)
             screen.blit(text_surface, (start_x, start_y + i * line_height))
 
+        for i, (key, val) in enumerate(data['base_stats'].items()):
+            stat_surface = content_font.render(f"{key}: {val}", True, WHITE)
+            screen.blit(stat_surface, (400, start_y + i * line_height))
+
         self.draw_status(screen,content_font,500,100,data['status'])
+
+        tabs=self.create_tabs({"pt"},(600,100))
+        for tab in tabs:
+            tab.is_hovered=True
+        self.draw_tabs(screen,tabs,False)
+        
 
     def draw_status(self,screen, font, x, y, status_list):
         # 先按 body_part 分类

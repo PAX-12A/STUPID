@@ -219,6 +219,15 @@ class Player(Actor):
         self.available_skills = set(["Greenhand"])  # 可见技能
         self.learned_skills = set(["Student"])
         self.skill_effects = {}  # 技能效果字典
+        attribute_names = {
+        'S': 'Strength',     #- your overall health condition(physical defence/immune disease)
+        'I': 'Intelligence', #- your programming ability (atk damage up,but prone to bugs、stress)
+        'M': 'Mindset',      #- your mental health (psy defence/immune mental stress)
+        'P': 'Perception',   #- gain more detailed info about yourself/enemy 、crital hit chance
+        'L': 'Logic',        #- sequence limit、sequence bonus、adjustment cost
+        'E': 'Earning',      #- 次要属性
+        }
+        self.base_stats = {k: 10 for k in ['S', 'I', 'M', 'P', 'L', 'E']}
 
         self.unlock_weapon("Hello World")  # 初始武器
 

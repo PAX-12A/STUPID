@@ -30,9 +30,9 @@ weapon_info = {
         "damage": 5,
         "pattern": [1],
         "range": 9,
-        "cooldown": 1,
+        "cooldown": 0,
         "color": RED,
-        "weapon_type": "melee",
+        "weapon_type": "roll",
         "unique_in_sequence": False
     },
     "Pointer Sword": {
@@ -92,6 +92,6 @@ weapon_info = {
         "cooldown": 7,
         "color": RED,
         "weapon_type": "fireball",
-        "unique_in_sequence": False
+        "unique_in_sequence": True
     },
 }

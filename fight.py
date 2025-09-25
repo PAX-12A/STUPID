@@ -43,6 +43,7 @@ class FightScene:
             "point":self.player.skill_points,
             "available_skills":self.player.available_skills,
             "learned_skills":self.player.learned_skills,
+            "base_stats":self.player.base_stats
         }
 
     def add_message(self, text, color=WHITE, duration=2000):
@@ -80,6 +81,10 @@ class FightScene:
         pawns = [p for p in pawns if p is not None]
 
         return next((pawn for pawn in pawns if pawn.position == pos), None)
+    
+    def get_enemy_positions(self):
+        """返回已排序的敌人位置"""
+        return sorted(enemy.position for enemy in self.enemies if enemy.alive)
     
     def get_closest_pawn(self, source_position , max_range=None, direction=None, pawn_type="enemy"):
         """
@@ -172,13 +177,13 @@ class FightScene:
                 success, msg = self.player.try_add_weapon_to_sequence(index,self)
                 if success:
                     self.end_player_turn()
-                self.add_message(msg) #666
+                self.add_message(msg) 
             elif event.key == pygame.K_SPACE:
                 if self.player.action_sequence:
                     self.execute_actions(self.player)
                     self.end_player_turn()
                 else:
-                    self.add_message("序列为空!")
+                    self.add_message("Empty Sequence!")
     def print_executed_actions(self,executed_actions):
         """
         打印 executed_actions 列表内容，不换行，用 -> 分隔
@@ -231,6 +236,55 @@ class FightScene:
                             pawn.take_damage(actual_damage,scene=self)
                             actor.apply_weapon_effects(pawn, weapon)
 
+            elif weapon.weapon_type == "roll":
+                new_pos=self.get_roll_target()
+                if new_pos is None:
+                    self.add_message("No valid roll target!")
+                    self.player.move(1)
+                else:
+                    for pos in range(self.player.position + 1,new_pos):
+                        if self.get_pawn_at(pos,"enemy"):
+                            self.get_pawn_at(pos,"enemy").take_damage(actual_damage,scene=self)
+                    self.player.position=new_pos
+
+            pygame.display.flip()
+            pygame.time.wait(500) # 暂停0.5秒
+            
+            # print(666)
+
+
+    def get_roll_target(self):
+            positions = self.get_enemy_positions()
+            if not positions:
+                return None
+
+            if self.player.direction == 1:  # 朝右
+                # 找到第一个比玩家位置大的连续区间
+                group = []
+                for p in positions:
+                    if p > self.player.position:
+                        if not group or p == group[-1] + 1:
+                            group.append(p)
+                        else:
+                            break
+                return group[-1] + 1 if group and group[-1] + 1<= BOARDSIZE else None
+
+            elif self.player.direction == -1:  # 朝左
+                # 找到第一个比玩家位置小的连续区间（从右往左扫）
+                group = []
+                for p in reversed(positions):
+                    if p < self.player.position:
+                        if not group or p == group[-1] - 1:
+                            group.append(p)
+                        else:
+                            break
+                return group[-1] - 1 if group and group[-1] + 1<= BOARDSIZE else None
+
+            return None
+
+
+
+
     def attack_by_pattern(self,weapon,actual_damage,actor):
 
         attack_positions = self.get_adjusted_attack_positions(weapon,actor)
@@ -268,6 +322,7 @@ class FightScene:
         
         if not closest_enemy:
             self.add_message(f"{weapon.name} No enemy")
+            actor.position = self.get_legal_position(actor.position + actor.direction * weapon.range)
             return False
 
         distance = abs(closest_enemy.position - self.player.position)
@@ -293,6 +348,8 @@ class FightScene:
 
         return True
 
+    def get_legal_position(self, postion):
+        return max(0, min(self.grid_size - 1, postion))
 
     def get_adjusted_attack_positions(self, weapon, actor):
         adjusted_positions = []
@@ -494,7 +551,7 @@ class FightScene:
 
         # 加号（正在添加新动作）
         if pawn.adding:
-            plus_surface = self.small_font.render("+", True, RED)
+            plus_surface = self.font.render("+", True, RED)
             screen.blit(plus_surface, (intent_x, intent_y))
             intent_y -= 48
 
