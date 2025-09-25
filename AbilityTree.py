@@ -1,8 +1,101 @@
 import pygame
 from font_manager import get_font
 from colors import *
-from Stupid import Toolbar,Tab
+from Stupid import Tab
 import time
+from pages import *
+
+class AbilityPage(PageContainer):
+    def __init__(self, get_player_data):
+        super().__init__("Ability", get_player_data, tab_pos=(SCREEN_WIDTH - 250, 50), direction="col")
+        # 注册四个子页面
+        self.register_page(TechPage(get_player_data))
+        self.register_page(LangPage(get_player_data))
+        self.register_page(AlgoPage(get_player_data))
+        self.register_page(SkillPage(get_player_data))
+
+class TechPage(Page):
+    def __init__(self, get_player_data):
+        super().__init__("Tech")
+        self.tree = TechTree(get_player_data)
+
+    def handle_event(self, event, player):
+        return self.tree.handle_event(player, event,"tech")
+
+    def update(self, player):
+        self.tree.update(player)
+
+    def draw(self, screen, font, player):
+        self.tree.draw_tech_tree(screen)
+
+class LangPage(Page):
+    def __init__(self, get_player_data):
+        super().__init__("Lang")
+        self.tree = TechTree(get_player_data)  # 共用同一个 TechTree
+
+    def handle_event(self, event, player):
+        return self.tree.handle_event(player, event,"lang")
+
+    def update(self, player):
+        self.tree.update(player)
+
+    def draw(self, screen, font, player):
+        # 绘制连接线
+        for start_name, end_name in self.tree.connections["lang"]:
+            start_node = self.tree.nodes["lang"][start_name]
+            end_node = self.tree.nodes["lang"][end_name]
+            
+            # 选择线条颜色和样式
+            if start_node.is_researched and end_node.is_unlocked:
+                line_color = WHITE
+                line_width = 3
+            elif start_node.is_researched:
+                line_color = GRAY  
+                line_width = 2
+            else:
+                line_color = SHADOW
+                line_width = 1
+            
+            pygame.draw.line(screen, line_color, start_node.rect.center, end_node.rect.center, line_width)
+
+        # 再绘制节点
+        font = get_font("en", "Cogmind", 12)
+        for node in self.tree.nodes["lang"].values():
+            node.draw(screen, font)
+
+                # 绘制选中节点的详细信息
+        if self.tree.selected_node:
+            self.tree.draw_node_info(screen)
+
+class AlgoPage(Page):
+    def __init__(self, get_player_data):
+        super().__init__("Algo")
+        from AbilityTree import TechTree
+        self.tree = TechTree(get_player_data)
+
+    def handle_event(self, event, player):
+        return self.tree.handle_event(player, event,"algo")
+
+    def update(self, player):
+        self.tree.update(player)
+
+    def draw(self, screen, font, player):
+        self.tree.draw_tech_tree(screen)  # 暂时共用 tech 树画法
+
+class SkillPage(Page):
+    def __init__(self, get_player_data):
+        super().__init__("Skill")
+        from AbilityTree import TechTree
+        self.tree = TechTree(get_player_data)
+
+    def handle_event(self, event, player):
+        return self.tree.handle_event(player, event,"skill")
+
+    def update(self, player):
+        self.tree.update(player)
+
+    def draw(self, screen, font, player):
+        self.tree.draw_skill_view(screen, player)
 
 
 # 科技节点类
@@ -179,6 +272,7 @@ class TechTree:
     def get_active_tab_name(self):
         for tab in self.tabs:
             if tab.is_active:
+                print(tab.name.lower())
                 return tab.name.lower()  # tech / skill / lang / algo
         return "tech"
         
@@ -293,54 +387,6 @@ class TechTree:
         ]
         surf= font.render(point_lines[0], True, WHITE)
         screen.blit(surf, (SCREEN_WIDTH-500, SCREEN_HEIGHT - 80))
-
-    def draw_language_tree(self,screen):
-        # image = load_image('assets/sp.png', (170,170))
-        # screen.blit(image, (800,400))
-
-        # 绘制连接线
-        for start_name, end_name in self.connections["lang"]:
-            start_node = self.nodes["lang"][start_name]
-            end_node = self.nodes["lang"][end_name]
-            
-            # 选择线条颜色和样式
-            if start_node.is_researched and end_node.is_unlocked:
-                line_color = WHITE
-                line_width = 3
-            elif start_node.is_researched:
-                line_color = GRAY  
-                line_width = 2
-            else:
-                line_color = SHADOW
-                line_width = 1
-            
-            pygame.draw.line(screen, line_color, start_node.rect.center, end_node.rect.center, line_width)
-
-        # 再绘制节点
-        font = get_font("en", "Cogmind", 12)
-        for node in self.nodes["lang"].values():
-            node.draw(screen, font)
-
-                # 绘制选中节点的详细信息
-        if self.selected_node:
-            self.draw_node_info(screen)
-            
-        
-    def draw(self, screen , player):
-        Toolbar.draw_tabs(self, screen, self.tabs)
-
-        subview = self.get_active_tab_name()
-
-        if subview == "skill":
-            self.draw_skill_view(screen,player)
-        elif subview == "lang":
-            self.draw_language_tree(screen)
-        elif subview == "algo":
-            self.draw_tech_tree(screen)
-        else:
-            self.draw_tech_tree(screen)
-
-        
        
     def draw_node_info(self, screen):
         node = self.selected_node
@@ -446,21 +492,10 @@ class TechTree:
             y_right += 30
 
                 
-    def handle_event(self, player, event):
-
-        tree_type = self.get_active_tab_name()
+    def handle_event(self, player, event,tree_type):
 
         # 1. ESC 返回上一级或关闭标签
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            # 如果当前不是 Tech，切回 Tech
-            active = self.get_active_tab_name()
-            if active and active != "tech":
-                for tab in self.tabs:
-                    tab.is_active = (tab.name.lower() == "tech")
-            else:
-                # 否则关闭所有
-                for tab in self.tabs:
-                    tab.is_active = False
             return True
 
         # 2. 鼠标移动：更新悬停状态
@@ -475,17 +510,8 @@ class TechTree:
                     for other_tab in self.tabs:
                         other_tab.is_active = (other_tab == tab)
                     return True
-                
-            # # tech / lang / algo 模式通用
-            # for node in self.nodes[tree_type].values():
-            #     if node.contains_point(event.pos):
-            #         self.selected_node = node
-            #         if node.can_unlock(self.researched) and node.is_unlocked and player.skill_points[tree_type]>0:
-            #             self.pressed_node = node
-            #             node.start_research()
-            #         break
 
-            if tree_type == "skill":
+            if tree_type == "skill":                
                 # 检测技能点击
                 for skill in player.available_skills:
                     rect = getattr(self, f"skill_rect_{skill}", None)
@@ -510,8 +536,6 @@ class TechTree:
             if self.pressed_node:
                 self.pressed_node.cancel_research()
                 self.pressed_node = None
-
-        # Toolbar.handle_hover_event(self,event)
                     
         return False
         

@@ -15,6 +15,7 @@ TOOLBAR_HEIGHT = 60
 import pygame
 import os
 import json
+from font_manager import get_font
 
 # 全局集合，记录已经提示过的缺失图片
 _missing_logged = set()
