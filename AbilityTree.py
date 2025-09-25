@@ -511,7 +511,7 @@ class TechTree:
                 self.pressed_node.cancel_research()
                 self.pressed_node = None
 
-        Toolbar.handle_hover_event(self,event)
+        # Toolbar.handle_hover_event(self,event)
                     
         return False
         

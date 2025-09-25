@@ -18,6 +18,124 @@ try:
 except pygame.error as e:
     print(f"无法载入背景音乐: {e}")
 
+class Page:
+    def __init__(self, name):
+        self.name = name
+        self.is_active = False
+
+    def handle_event(self, event, player):
+        """处理用户输入"""
+        return False
+
+    def update(self, player):
+        """更新页面逻辑"""
+        pass
+
+    def draw(self, screen, font, player):
+        """绘制页面内容"""
+        pass
+
+class AbilityPage(Page):
+    def __init__(self, get_player_data):
+        super().__init__("Ability")
+        from AbilityTree import TechTree
+        self.tech_tree = TechTree(get_player_data)
+
+    def handle_event(self, event, player):
+        return self.tech_tree.handle_event(player, event)
+
+    def update(self, player):
+        self.tech_tree.update(player)
+
+    def draw(self, screen, font, player):
+        self.tech_tree.draw(screen, player)
+
+class InventoryPage(Page):
+    def __init__(self):
+        super().__init__("Inventory")
+
+    def draw(self, screen, font, player=None):
+        lines = [
+            "这里是你的物品背包",
+            "可以存放武器、装备和道具",
+            "点击物品查看详细属性"
+        ]
+        for i, line in enumerate(lines):
+            text_surface = font.render(line, True, WHITE)
+            screen.blit(text_surface, (50, 100 + i * 25))
+
+# === Character 页面 ===
+class CharacterPage(Page):
+    def __init__(self, get_player_data):
+        super().__init__("Character")
+        self.get_player_data = get_player_data
+
+    def draw(self, screen, font, player=None):
+        character = load_image('assets/programmer.jpg',(736/4,736/4))
+        screen.blit(character, (100, 100))
+        title_font = get_font("en","Cogmind",30)
+        content_font = get_font("en","DOS",20)
+        text_surface = title_font.render("The harmful effect of programming", True, WHITE)
+        screen.blit(text_surface, (50, 30))
+
+        data = self.get_player_data()
+        stats_lines = [
+            f"HP: {data['health']}/{data['max_health']}",
+            f"Sequence Limit: {data['sequence_limit']}",
+            f"DP: {data['damage_multiplier']}",
+        ]
+        start_x, start_y = 50, 500
+        line_height = content_font.get_height() + 5
+
+        for i, line in enumerate(stats_lines):
+            text_surface = content_font.render(line, True, WHITE)
+            screen.blit(text_surface, (start_x, start_y + i * line_height))
+
+        for i, (key, val) in enumerate(data['base_stats'].items()):
+            stat_surface = content_font.render(f"{key}: {val}", True, WHITE)
+            screen.blit(stat_surface, (400, start_y + i * line_height))
+
+        self.draw_status(screen,content_font,500,100,data['status'])
+
+    def draw_status(self,screen, font, x, y, status_list):
+        # 先按 body_part 分类
+        categorized = {}
+        for s in status_list:
+            # if s.is_illness:  # 只显示疾病类
+                categorized.setdefault(s.body_part, []).append(s)
+
+        current_y = y
+        for body_part, illnesses in categorized.items():
+            # 绘制部位标题
+            part_text = font.render(f"{body_part.capitalize()}:", True, WHITE)
+            screen.blit(part_text, (x, current_y))
+            current_y += font.get_height() + 2
+
+            # 绘制每个病
+            for illness in illnesses:
+                # 假设 illness 有 duration 属性
+                name_line = f"{illness.name}({illness.stack},{illness.duration}t to reduce 1 layer)"
+                illness_text = font.render(name_line, True, GREEN if illness.is_illness else WHITE)
+                screen.blit(illness_text, (x + 20, current_y))
+                current_y += font.get_height() + 2
+
+            # 每个部位之间空一行
+            current_y += 5
+
+# === Settings 页面 ===
+class SettingsPage(Page):
+    def __init__(self):
+        super().__init__("Settings")
+
+    def draw(self, screen, font, player=None):
+        content_lines = [
+            "调整游戏设置和选项",
+            "包括音效、画质和操作设置",
+            "保存和加载游戏进度"
+        ]
+        for i, line in enumerate(content_lines):
+            text_surface = font.render(line, True, WHITE)
+            screen.blit(text_surface, (50, 100 + i * 25))
 
 class Tab:
     def __init__(self, name, x, y):
@@ -57,22 +175,67 @@ class Tab:
             if self.rect.collidepoint(event.pos):
                 return True
         return False
-
+    
 class Toolbar:
-    def __init__(self,get_player_data):
-        from AbilityTree import TechTree
-        # 创建标签页
-        self.tabs = self.create_tabs(
-            ["Character", "Ability", "Inventory", "Settings"],
-            start_pos=(50, SCREEN_HEIGHT - TOOLBAR_HEIGHT + 10),
-            direction="row"
-        )
-        self.active_tab_index = None  # 主界面默认
-            
-        # 创建科技树
-        self.Ability_tree = TechTree(get_player_data)
-
+    def __init__(self, get_player_data):
+        self.tabs = []
+        self.pages = {}
+        self.active_page = None
         self.get_player_data = get_player_data
+
+        # 注册页面
+        self.register_page(AbilityPage(get_player_data))
+        self.register_page(InventoryPage())
+        self.register_page(CharacterPage(get_player_data))
+        self.register_page(SettingsPage())
+
+    def register_page(self, page):
+        x, y = 50, SCREEN_HEIGHT - TOOLBAR_HEIGHT + 10
+        tab_x = x + len(self.tabs) * (TAB_WIDTH + 10)
+        tab_y = y
+        tab = Tab(page.name, tab_x, tab_y)
+
+        self.tabs.append(tab)
+        self.pages[page.name] = page
+
+    def handle_event(self, player, event):
+        # Tab 点击切换
+        for tab in self.tabs:
+            if tab.handle_event(event):
+                if tab.is_active:
+                    tab.is_active = False
+                    self.active_page = None
+                else:
+                    for t in self.tabs:
+                        t.is_active = False
+                    tab.is_active = True
+                    self.active_page = self.pages[tab.name]
+                return True
+
+        # 事件交给当前页面
+        if self.active_page:
+            return self.active_page.handle_event(event, player)
+
+    def update(self, player):
+        if self.active_page:
+            self.active_page.update(player)
+
+    def draw(self, screen, font, player):
+        self.draw_tabs(screen, self.tabs)
+        if self.active_page:
+            self.active_page.draw(screen, font, player)
+
+    def draw_tabs(self, screen, tabs, img=True):
+        icon_font = get_font("en","Cogmind",20)
+        pygame.draw.line(screen, WHITE, (0, SCREEN_HEIGHT - TOOLBAR_HEIGHT),
+                         (SCREEN_WIDTH, SCREEN_HEIGHT - TOOLBAR_HEIGHT), 3)
+        for tab in tabs:
+            tab.draw(screen, icon_font, img)
+
+    def close_all_tabs(self):
+        for tab in self.tabs:
+            tab.is_active = False
+        self.active_page = None
 
     def create_tabs( self ,names, start_pos, direction="row", spacing=10):
         tabs = []
@@ -92,166 +255,6 @@ class Toolbar:
             tabs.append(tab)
         
         return tabs
-    
-    def draw_tabs(self, screen,tabs,img=True):# 绘制按钮
-        # 绘制装饰性边框
-        icon_font = get_font("en","Cogmind",20)
-        pygame.draw.line(screen, WHITE, (0, SCREEN_HEIGHT - TOOLBAR_HEIGHT), 
-                        (SCREEN_WIDTH, SCREEN_HEIGHT - TOOLBAR_HEIGHT), 3)
-        
-        # 绘制所有标签
-        for tab in tabs:
-            tab.draw(screen, icon_font, img)
-    
-    def close_all_tabs(self):
-        for tab in self.tabs:
-            tab.is_active = False
-        self.active_tab_index = None
-
-    def update(self, player):
-        """处理所有与游戏逻辑相关的更新"""
-        if self.tabs and self.active_tab_index is not None:
-            active_tab = self.tabs[self.active_tab_index]
-            if active_tab.name == "Ability":
-                self.Ability_tree.update(player)  # 研究进度逻辑
-    
-    def draw(self, screen,content_font): 
-        # 绘制标签边框
-        self.draw_tabs(screen, self.tabs)
-        
-        # 如果有激活的标签页
-        if self.tabs and self.active_tab_index is not None:
-            active_tab = self.tabs[self.active_tab_index]
-            
-            # 根据标签名调用对应的绘制方法
-            draw_method = {
-                "Ability": self.draw_ability_page,
-                "Inventory": self.draw_inventory_page,
-                "Character": self.draw_character_page,
-                "Settings": self.draw_settings_page
-            }.get(active_tab.name, None)
-
-            if draw_method:
-                draw_method(screen, content_font,player=self.get_player_data())
-
-    # ==== 以下是分离的页面绘制函数 ====
-
-    def draw_ability_page(self, screen , content_font ,player):
-        self.Ability_tree.draw(screen , player)
-
-    def draw_inventory_page(self, screen, content_font , player=None):
-        content_lines = [
-            "这里是你的物品背包",
-            "可以存放武器、装备和道具",
-            "点击物品查看详细属性"
-        ]
-        for i, line in enumerate(content_lines):
-            text_surface = content_font.render(line, True, WHITE)
-            screen.blit(text_surface, (50, 100 + i * 25))
-
-    def draw_character_page(self, screen ,content_font ,player=None):
-        self.draw_character(screen)
-
-    def draw_settings_page(self, screen, content_font ,player=None):
-        content_lines = [
-            "调整游戏设置和选项",
-            "包括音效、画质和操作设置",
-            "保存和加载游戏进度"
-        ]
-        for i, line in enumerate(content_lines):
-            text_surface = content_font.render(line, True, WHITE)
-            screen.blit(text_surface, (50, 100 + i * 25))
-
-    def handle_hover_event(self, event):
-        # 处理标签切换事件
-        for i, tab in enumerate(self.tabs):
-            if tab.handle_event(event):
-                if tab.is_active:
-                    # 如果点击的是当前激活的标签，则关闭所有标签
-                    tab.is_active = False
-                    self.active_tab_index = None
-                else:
-                    # 否则激活这个标签
-                    for t in self.tabs:
-                        t.is_active = False
-                    tab.is_active = True
-                    self.active_tab_index = i
-                return True
-    
-    def handle_event(self, player,event):
-        # 如果当前是科技页面，处理科技树事件
-        if self.active_tab_index is not None:
-            if self.tabs and self.tabs[self.active_tab_index].name == "Ability":
-                if self.Ability_tree.handle_event(player,event):
-                    return True
-                
-        self.handle_hover_event(event)
-
-    def draw_character(self,screen):
-        character = load_image('assets/programmer.jpg',(736/4,736/4))
-        screen.blit(character, (100, 100))
-        Title_font=get_font("en","Cogmind",30)
-        content_font=get_font("en","DOS",20)
-        text_surface = Title_font.render("The harmful effect of programming", True, WHITE)
-        screen.blit(text_surface, (50, 30))
-        # brain_pos=(300, 210)
-        # body_pos=(350, 300)
-        # TEXT_BEGIN_x= 550
-        # TEXT_BEGIN_y= 550
-
-        # pygame.draw.line(screen, GRAY, brain_pos, (TEXT_BEGIN_x, 100), 5)
-        # pygame.draw.line(screen, GRAY, body_pos, (TEXT_BEGIN_x, 300), 5)
-
-        data = self.get_player_data()  # 调用回调拿到玩家数据
-        stats_lines = [
-            f"HP: {data['health']}/{data['max_health']}",
-            f"Sequence Limit: {data['sequence_limit']}",
-            f"DP: {data['damage_multiplier']}",
-        ]
-        
-        start_x, start_y = 50, 500  # 起始位置
-        line_height = content_font.get_height() + 5  # 行距
-
-        for i, line in enumerate(stats_lines):
-            text_surface = content_font.render(line, True, WHITE)
-            screen.blit(text_surface, (start_x, start_y + i * line_height))
-
-        for i, (key, val) in enumerate(data['base_stats'].items()):
-            stat_surface = content_font.render(f"{key}: {val}", True, WHITE)
-            screen.blit(stat_surface, (400, start_y + i * line_height))
-
-        self.draw_status(screen,content_font,500,100,data['status'])
-
-        tabs=self.create_tabs({"pt"},(600,100))
-        for tab in tabs:
-            tab.is_hovered=True
-        self.draw_tabs(screen,tabs,False)
-        
-
-    def draw_status(self,screen, font, x, y, status_list):
-        # 先按 body_part 分类
-        categorized = {}
-        for s in status_list:
-            # if s.is_illness:  # 只显示疾病类
-                categorized.setdefault(s.body_part, []).append(s)
-
-        current_y = y
-        for body_part, illnesses in categorized.items():
-            # 绘制部位标题
-            part_text = font.render(f"{body_part.capitalize()}:", True, WHITE)
-            screen.blit(part_text, (x, current_y))
-            current_y += font.get_height() + 2
-
-            # 绘制每个病
-            for illness in illnesses:
-                # 假设 illness 有 duration 属性
-                name_line = f"{illness.name}({illness.stack},{illness.duration}t to reduce 1 layer)"
-                illness_text = font.render(name_line, True, GREEN if illness.is_illness else WHITE)
-                screen.blit(illness_text, (x + 20, current_y))
-                current_y += font.get_height() + 2
-
-            # 每个部位之间空一行
-            current_y += 5
 
 class MainMenu:
     def __init__(self, font):
@@ -403,7 +406,7 @@ def main():
             screen.fill(BLACK)
             if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
                 fight_scene.draw(screen)
-            toolbar.draw(screen, ch_Pixel_20)
+            toolbar.draw(screen, ch_Pixel_20,fight_scene.get_player_data())
             help_system.draw(screen, ch_Pixel_20)
                 
 
