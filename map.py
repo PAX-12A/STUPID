@@ -233,20 +233,6 @@ class Map:
     # =========================
 
     def place_exit(self):
-        # start = (1, self.height // 2)
-        # reachable = self.flood_fill(start)  # ✅ 先拿到联通区域
-
-        # best = None
-        # best_dist = -1
-
-        # for (x, y) in reachable:           # ✅ 只在联通格里找最远点
-        #     d = abs(x - start[0]) + abs(y - start[1])
-        #     if d > best_dist:
-        #         best_dist = d
-        #         best = (x, y)
-
-        # if best:
-        #     self.terrain[best[1]][best[0]] = EXIT
         self.terrain[62][1]= EXIT
         self.terrain[62][14]= EXIT
 

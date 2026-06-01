@@ -89,8 +89,6 @@ class MoveAnimation:
         y = self.start.y + (self.end.y - self.start.y) * t
 
         self.pawn.render_pos = Vec2(x, y)
-        # print(self.pawn.render_pos)
-
 
         if t >= 1:
             self.finished = True
@@ -99,3 +97,71 @@ class MoveAnimation:
 
     def get_frame(self):
         return self.pawn.get_sprite()
+    
+
+class ScanDeathAnimation:
+
+    def __init__(self, sprite, block_size=4, speed=0.02):
+
+        self.sprite = sprite
+        self.block_size = block_size
+        self.speed = speed
+
+        self.time = 0
+
+        self.w = sprite.get_width()
+        self.h = sprite.get_height()
+
+        self.cols = self.w // block_size
+        self.rows = self.h // block_size
+
+        self.total_blocks = self.cols * self.rows
+
+        self.current_block = 0
+
+        self.finished = False
+
+    def reset(self):
+        self.time = 0
+
+    def update(self, dt):
+
+        if self.finished:
+            return
+
+        self.time += dt
+
+        if self.time >= self.speed:
+
+            self.time = 0
+
+            self.current_block += 1
+
+            if self.current_block >= self.total_blocks:
+
+                self.finished = True
+
+    def get_frame(self):
+
+        frame = self.sprite.copy()
+
+        for i in range(self.current_block):
+
+            row = i // self.cols
+            col = i % self.cols
+
+            rect = pygame.Rect(
+                col * self.block_size,
+                row * self.block_size,
+                self.block_size,
+                self.block_size
+            )
+
+            frame.fill(
+                (0, 0, 0, 0),
+                rect
+            )
+
+        return frame
+    
+

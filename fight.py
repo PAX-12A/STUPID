@@ -40,6 +40,7 @@ class FightScene:
         
         # 生成一个随机关卡
         self.player = Player(self, Vec2(8, 1))
+        self.enemies = []
         self.prepare_level()
         # print(self.player.position)
 
@@ -77,8 +78,6 @@ class FightScene:
     def prepare_level(self):
         self.mymap = Map(GRID_WIDTH, GRID_HEIGHT, self.camera)
         self.mymap.generate_map()
-
-        self.enemies = []
 
         self.player.position = Vec2(8, 1)
         self.player.render_pos = Vec2(8.0, 1.0)
@@ -668,19 +667,31 @@ class FightScene:
 
         self.update_actionqueue(dt)
 
-        for enemy in self.enemies:
-            enemy.state_machine.update(dt)     # 统一用同一个 dt
-        self.player.state_machine.update(dt)
-
         self.process_events()
         self.vfx.update(dt)
         self.camera.update(self.player)
 
-        self.player.anim.update(dt)
+        self.player.update(dt) #包括状态机和动画+死亡管理
         for enemy in self.enemies:
-            enemy.anim.update(dt)
+            enemy.update(dt)
+
+        self.cleanup_entities()
 
         self.ui_input.update()
+
+    def cleanup_entities(self):
+
+        self.enemies = [
+            e
+            for e in self.enemies
+            if e.alive
+        ]
+
+        self.projectiles = [
+            p
+            for p in self.projectiles
+            if p.alive
+        ]
 
     def _enemy_turn_ready(self):
         """所有敌人的动画都播完了才返回 True"""
@@ -743,30 +754,17 @@ class FightScene:
     def handle_scene_event(self, event):
 
         if isinstance(event, DamageEvent):
-            if(event.target == None):
+            if(event.target == None or event.target.health<=0):
                 return
             event.target.health -= event.amount
 
             print(f"{event.target.name} took {event.amount} damage, health now {event.target.health}")
 
-            if event.target.health <= 0:
+            if event.target.health <= 0 :
                 self.events.push(DeathEvent(event.target))
 
         elif isinstance(event, DeathEvent):
-            pawn = event.pawn
-            pawn.die()
-
-            if isinstance(pawn, Enemy):
-                if pawn in self.enemies:
-                    self.enemies.remove(pawn)
-                self.events.push(MessageEvent("Enemy Defeated!", GREEN))
-
-            elif isinstance(pawn, Player):
-                self.game_state = "game_over"
-
-            elif isinstance(pawn, Projectile):
-                if pawn in self.projectiles:
-                    self.projectiles.remove(pawn)
+            event.pawn.die()
 
         elif isinstance(event, MessageEvent):
             self.add_message(event.text, event.color)

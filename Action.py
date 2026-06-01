@@ -1,7 +1,7 @@
 from grid import Vec2
 from statemachine import *
 from Damage import *
-from entity import projectile_registry
+from entity import EntityFactory
 
 
 class Action:
@@ -361,35 +361,62 @@ class TimelineStep:
             "duration": self.duration
         }
     
+# class SpawnEntityAction(Action):
+
+#     def __init__(self, actor, projectile_type , damage ,direction:Vec2 ,lifetime = 5 , offset = None , speed = 1):
+#         super().__init__(actor)
+
+#         self.projectile_type = projectile_type
+#         self.damage = damage
+#         self.direction = direction
+#         self.lifetime = lifetime
+#         self.offset = offset if offset is not None else actor.position
+#         self.speed = speed
+
+#     def start(self,scene):
+#         projectile_cls = projectile_registry[self.projectile_type]
+
+#         projectile = projectile_cls(
+#             scene = scene,
+#             projectile_type = self.projectile_type,
+#             position = self.actor.position + self.offset,
+#             direction= self.direction,
+#             lifetime = self.lifetime,
+#             damage = self.damage,
+#             speed = self.speed
+#         )
+
+#         scene.projectiles.append(projectile)
+
+#         self.finished = True
+    
+#     def is_finished(self):
+#         return True
+
 class SpawnEntityAction(Action):
 
-    def __init__(self, actor, projectile_type , damage ,direction:Vec2 ,lifetime = 5 , offset = None , speed = 1):
+    def __init__(self,actor,entity_type,direction,offset=None,config=None):
         super().__init__(actor)
 
-        self.projectile_type = projectile_type
-        self.damage = damage
+        self.entity_type = entity_type
         self.direction = direction
-        self.lifetime = lifetime
-        self.offset = offset if offset is not None else actor.position
-        self.speed = speed
+        self.offset = offset if offset else Vec2(0,0)
+        self.config = config
 
     def start(self,scene):
-        projectile_cls = projectile_registry[self.projectile_type]
 
-        projectile = projectile_cls(
-            scene = scene,
-            projectile_type = self.projectile_type,
-            position = self.actor.position + self.offset,
-            direction= self.direction,
-            lifetime = self.lifetime,
-            damage = self.damage,
-            speed = self.speed
+        entity = EntityFactory.create(
+            scene=scene,
+            entity_type=self.entity_type,
+            position=self.actor.position+self.offset,
+            direction=self.direction,
+            config=self.config
         )
 
-        scene.projectiles.append(projectile)
+        scene.projectiles.append(entity)
 
         self.finished = True
-    
+
     def is_finished(self):
         return True
 

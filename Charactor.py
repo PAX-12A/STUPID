@@ -112,6 +112,7 @@ class Pawn(Entity):
         self.battle_style = "queue"  # 或 stack
         self.on_move_check = None  # 回调（检测位置交换等）
         self.alive = True   # 是否存活
+        self.dying = False
         self.state_machine = StateMachine(self)
         self.anim = AnimationController(self)
         self.scene = scene
@@ -134,6 +135,9 @@ class Pawn(Entity):
     def update(self, dt):
         self.state_machine.update(dt)
         self.anim.update(dt)
+
+        if self.dying and self.anim.current.finished:
+            self.alive = False
 
     def on_turn_start(self):
         self.update_statuses()
@@ -198,9 +202,9 @@ class Pawn(Entity):
         # self.add_status(Status("Diabetes", "wholebody", is_illness=True))
 
     def die(self):
-        """角色死亡的基础逻辑"""
-        self.health = 0  # 确保血量为 0
-        self.alive = False
+        self.dying = True
+        self.anim.play(ScanDeathAnimation(self.get_sprite(),block_size=4,speed=0.01))
+        
 
     def update_cooldowns(self):
         for weapon in self.weapons:
@@ -312,9 +316,8 @@ class Player(Pawn):
 
 
     def die(self):
-        """玩家死亡时的特殊逻辑"""
         super().die()  # 调用父类的 die() 处理基本死亡逻辑
-        #self.game_state = "game_over"   # ✅ 切换游戏状态，而不是删掉 player
+        self.scene.game_state = "game_over" 
 
     def game_over(self):
         """游戏结束的逻辑"""
@@ -372,9 +375,6 @@ class MonsterBlueprint:
         self.intents = data["intents"]
         self.type = data["type"]
 
-    # def create_weapons(self):
-    #     return [WEAPON_LIBRARY[w] for w in self.weapon_ids]
-
     def create_weapons(self):
 
         weapons = []
@@ -426,9 +426,7 @@ class Enemy(Pawn):
             self.strategy = RangedMoveStrategy()
         self.state = AddWeaponState()  # 初始状态为试图添加武器攻击玩家
         self.idle_frames = [load_image(f"arts/sprite/Character/{self.name}.png", (32, 32))]
-        self.attack_frames = [
-            load_image(f"arts/sprite/Character/{self.name}.png", (32, 32))
-        ]
+        self.attack_frames = [load_image(f"arts/sprite/Character/{self.name}.png", (32, 32))]
         self.state_machine.change(IdleState(self))
         
 
@@ -688,16 +686,6 @@ MONSTER_LIBRARY = {
             ["Fireball"],
         ]
     },
-    # "BUG":{
-    #     "name": "BUG",
-    #     "health": 5,
-    #     "type": "range",
-    #     "weapons": ["Stack Overflow", "Compile Error"],
-    #     "intents": [
-    #         ["Stack Overflow"],
-    #         ["Compile Error"]
-    #     ]
-    # },
     "BUG2":{
         "name": "BUG",
         "health": 5,
@@ -721,11 +709,3 @@ MONSTER_LIBRARY = {
     },
 }
 
-# WEAPON_LIBRARY = {
-#     "Exam": PatternWeapon("Exam", 10, [Vec2(1,0)], 0,status_effects=[Status("Anxiety","brain")]),
-#     "Nullptr": PatternWeapon("Nullptr", 5, [Vec2(1,0),Vec2(2,0)], 0,unique_in_sequence=False,status_effects=[Status("Stress", "brain",stack=3)]),
-#     # "GPA--": Weapon("GPA--", 5, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Stress", "brain")]),
-#     "DashToDeadline": DashWeapon("DashToDeadline", 3, [Vec2(1,0)], 0,status_effects=[Status("Dizzy","brain")]),
-#     # "Stack Overflow": Weapon("Stack Overflow", 8, [-1,0,1], 0, GREEN, weapon_type="fireball", range=5,status_effects=[Status("Anger", "brain")]),
-#     # "Compile Error": Weapon("Compile Error", 10, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Anxiety","brain")]),
-# }

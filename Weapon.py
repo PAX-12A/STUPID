@@ -8,7 +8,7 @@ from entity import Arrow
 class Weapon:
     def __init__(self, name, data):
         self.name = name
-        self.damage = data["damage"]
+        self.damage = data.get("damage",0)
         self.cooldown = data.get("cooldown",0)
         self.current_cooldown = 0
         self.unique_in_sequence = data.get("unique_in_sequence",True)
@@ -46,9 +46,36 @@ class Weapon:
         return adjusted_positions
     
 
+    # def build_actions(self, scene, actor):
+
+    #     return behavior_registry[self.behavior](self,scene,actor)
+
     def build_actions(self, scene, actor):
 
-        return behavior_registry[self.behavior](self,scene,actor)
+        actions = []
+
+        behaviors = self.behavior
+
+        if isinstance(behaviors, str):
+            behaviors = [behaviors]
+
+        for behavior in behaviors:
+
+            actions.extend(
+                behavior_registry[behavior](
+                    self,
+                    scene,
+                    actor
+                )
+            )
+
+        return actions
+    
+def mirror(vec,direction):
+    return Vec2(
+        vec.x * direction,
+        vec.y
+    )
     
 def build_pattern_attack(weapon,scene,actor):
 
@@ -76,8 +103,7 @@ def build_dash_attack(weapon, scene, actor):
 
         yield MoveAction(actor, offset)
 
-        # Move 执行后：
-        # actor.position 已经是最新的
+        # Move 执行后：actor.position 已经是最新的
 
         attack_positions = weapon.get_attack_positions(actor)
 
@@ -101,8 +127,6 @@ def build_roll_attack(weapon, scene, actor):
 
         yield MoveAction(actor, offset)
 
-        # Move 执行后：actor.position 已经是最新的
-
         attack_positions = weapon.get_attack_positions(actor)
 
         yield AttackAction(actor,weapon,attack_positions,weapon.damage)
@@ -118,38 +142,14 @@ def build_move(weapon, scene, actor):
     return act
 
 
-def build_mine(self, scene, actor, damage):
+def build_mine(weapon, scene, actor):
     return [
-        MineAction(actor,self),
-        AttackAction(actor, self, damage),  # execute() 只做攻击
+        MineAction(actor,weapon),
+        AttackAction(actor, weapon,attack_positions = weapon.get_attack_positions(actor), damage = weapon.damage),  # execute() 只做攻击
     ]
     
-
-def build_p1(weapon,scene,actor):
-
-    return [
-        SpawnEntityAction(actor,"Arrow",weapon.damage, direction = Vec2(actor.direction,0),offset=Vec2(actor.direction,0),lifetime =10)
-    ]
-
-def build_shotgun(weapon,scene,actor):
-
-    def sequence():
-
-        yield  ParallelAction(
-                actor,
-            [
-                SpawnEntityAction(actor,"Bullet",weapon.damage, direction = Vec2(actor.direction,0),offset=Vec2(actor.direction,0),speed = 2),
-                SpawnEntityAction(actor,"Bullet",weapon.damage, direction = Vec2(actor.direction,1),offset=Vec2(actor.direction,0),speed = 1),
-                SpawnEntityAction(actor,"Bullet",weapon.damage, direction = Vec2(actor.direction,-1),offset=Vec2(actor.direction,0),speed = 1),
-            ])
-
-        yield MoveAction(actor, Vec2(-actor.direction*2,0))
-
-    return [SequenceAction(actor, sequence())]
-
 def build_pn(weapon,scene,actor):
-
-    cfg = weapon.config
+    
 
     actions = []
 
@@ -158,15 +158,13 @@ def build_pn(weapon,scene,actor):
         actions.append(
             SpawnEntityAction(
                 actor,
-                projectile_type=cfg["projectile"],
-                damage=weapon.damage,
-                direction=spawn["direction"],
-                offset=spawn["offset"],
-                speed=cfg.get("speed",1),
-                lifetime=cfg.get("lifetime",10)
+                entity_type=spawn["entity"],
+                direction=mirror(spawn["direction"],actor.direction),
+                offset=mirror(spawn["offset"],actor.direction),#与actor的direction有关
             )
         )
-    return actions
+    return [ParallelAction(actor,actions)]
+    
 
 weapon_info = {
     "Hello World": {
@@ -177,21 +175,18 @@ weapon_info = {
         "unique_in_sequence": False
     },
     "Goto Jump": {
-        "damage": 0,
         "behavior": "move",
         "move": [Vec2(0,-1),Vec2(0,-1)],
         "pattern": [Vec2(0,-1),Vec2(0,-1)],
         "cooldown": 0,
     },
     "DEBUG": {
-        "damage": 0,
         "behavior": "move",
         "move": [Vec2(2,0)],
         "cooldown": 0,
         "unique_in_sequence": False
     },
     "DragAndDrop": {
-        "damage": 0,
         "behavior": "move",
         "move": [Vec2(0,-1),Vec2(0,-1),Vec2(0,-1),Vec2(0,-1),Vec2(0,-1),Vec2(0,-1)],
         "cooldown": 4,
@@ -221,9 +216,14 @@ weapon_info = {
         "cooldown": 5,
     },
     "Shotgun":{
-        "behavior":"shotgun",
-        "damage": 1,
-        "cooldown": 10,
+        "behavior": ["pn","move"],
+        "move":[Vec2(-1,0),Vec2(-1,0)],
+        "cooldown": 6,
+        "spawns": [
+            {"entity":"Bullet","direction": Vec2(1,1),"offset": Vec2(1,0)},
+            {"entity":"Bullet","direction": Vec2(1,0),"offset": Vec2(1,0)},
+            {"entity":"Bullet","direction": Vec2(1,-1),"offset": Vec2(1,0)},
+        ]
     },
     # "JVM Inferno Staff": {
     # },
@@ -249,21 +249,20 @@ weapon_info = {
         "pattern": [Vec2(1,0),Vec2(2,0)],
     },
     "Fireball":{
-        "behavior": "p1",
-        "projectile": "Arrow",
-        "damage": 6,
-        "speed": 1,
-        "lifetime": 10,
+        "damage":5,#远程武器的此字段只用于展示给玩家，实际造成弹射物的伤害
+        "behavior": "pn",
+        "spawns":[
+            {"entity":"Arrow","direction":Vec2(1,0),"offset":Vec2(1,0)},
+        ]
     },
     "MultiShoot":{
+        "damage":2,
         "behavior": "pn",
-        "projectile": "Mana",
-        "damage": 2,
         "spawns": [
-            {"direction": Vec2(1,1),"offset": Vec2(1,1)},
-            {"direction": Vec2(-1,1),"offset": Vec2(-1,1)},
-            {"direction": Vec2(1,-1),"offset": Vec2(1,-1)},
-            {"direction": Vec2(-1,-1),"offset": Vec2(-1,-1)}
+            {"entity":"Mana","direction": Vec2(1,1),"offset": Vec2(1,1)},
+            {"entity":"Mana","direction": Vec2(-1,1),"offset": Vec2(-1,1)},
+            {"entity":"Mana","direction": Vec2(1,-1),"offset": Vec2(1,-1)},
+            {"entity":"Mana","direction": Vec2(-1,-1),"offset": Vec2(-1,-1)}
         ]
     },
 }
@@ -273,8 +272,7 @@ behavior_registry = {
     "dash": build_dash_attack,
     "roll": build_roll_attack,
     "move": build_move,
-    "shotgun": build_shotgun,
     "mine":build_mine,
-    "p1" : build_p1,
     "pn" : build_pn,
 }
+

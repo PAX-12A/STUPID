@@ -47,7 +47,5 @@ class SlashVFX(VFX):
 
         if self.direction == -1:
             img = pygame.transform.flip(img, True, False)
-        # print(self.center_pos)#运行到了
-        # print(camera.apply(self.center_pos))
 
         render_1bit_sprite(screen, img, camera.apply(self.center_pos), RED)

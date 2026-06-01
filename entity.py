@@ -30,10 +30,11 @@ class Projectile(Entity):
         self.name = projectile_type
         self.speed = speed
         self.sprite = scene.spritemanager.get(self.projectile_type)
+        self.alive = True
 
     def update(self):
 
-        self.collision.update(self)
+        self.collision.update(self,self.scene)
 
         self.movement.update(self,self.speed)
 
@@ -53,21 +54,23 @@ class Projectile(Entity):
             screen_pos
         )
     def die(self):
-        print("Projectile died")
+        # print("Projectile died")
+
+        self.alive = False
 
 
 class StraightMovement:
 
     def update(self, projectile, speed = 1):
 
-        projectile.position += projectile.direction*speed
+        projectile.position += projectile.direction * speed
 
 class DamageCollision:
 
     def __init__(self, damage):
         self.damage = damage
 
-    def update(self, projectile):
+    def update(self, projectile ,scene):
 
         for e in projectile.scene.enemies:
 
@@ -76,13 +79,14 @@ class DamageCollision:
                 projectile.scene.events.push(DamageEvent(projectile,e,self.damage))
                 projectile.scene.events.push(DamageEvent(None,projectile,self.damage))#自毁
 
-                projectile.alive = False
-
                 return
+            
         if projectile.scene.player.position == projectile.position:
             projectile.scene.events.push(DamageEvent(projectile,projectile.scene.player,self.damage))
             projectile.scene.events.push(DamageEvent(None,projectile,self.damage))
-            projectile.alive = False
+
+        if scene.mymap.is_wall(projectile.position) :
+            projectile.scene.events.push(DamageEvent(None,projectile,self.damage))
 
             
 
@@ -117,49 +121,62 @@ projectile_registry = {
     "Bullet": Arrow,
 }
 
+class EntityFactory:
+
+    @staticmethod
+    def create(scene,entity_type,position,direction,config=None):
+
+        cfg = projectile_info[entity_type].copy()
+
+        if config:
+            cfg.update(config)
+
+        return Projectile(
+            scene=scene,
+            projectile_type=entity_type,
+            position=position,
+            direction=direction,
+            movement=movement_registry[cfg["movement"]](),
+            collision=collision_registry[cfg["collision"]](cfg["damage"]),
+            lifetime=Lifetime(cfg["lifetime"]),
+            health=cfg["health"],
+            speed=cfg["speed"]
+        )
+    
 projectile_info = {
 
-    "Arrow": {
-
-        "movement": "straight",
-
-        "collision": "damage",
-
-        "sprite": "Arrow",
-
-        "health": 1
+    "Arrow":{
+        "movement":"straight",
+        "collision":"damage",
+        "damage":5,
+        "speed":1,
+        "lifetime":10,
+        "health":1
     },
 
-    "Mana": {
-
-        "movement": "straight",
-
-        "collision": "damage",
-
-        "sprite": "Mana",
-
-        "health": 1
+    "Mana":{
+        "movement":"straight",
+        "collision":"damage",
+        "damage":2,
+        "speed":1,
+        "lifetime":5,
+        "health":1
     },
 
-    "Bullet": {
-
-        "movement": "straight",
-
-        "collision": "damage",
-
-        "sprite": "Bullet",
-
-        "health": 1
-    },
-
-    "Missile": {
-
-        "movement": "homing",
-
-        "collision": "explosion",
-
-        "sprite": "Missile",
-
-        "health": 1
+    "Bullet":{
+        "movement":"straight",
+        "collision":"damage",
+        "damage":1,
+        "speed":1,
+        "lifetime":8,
+        "health":1
     }
+}
+
+movement_registry = {
+    "straight":StraightMovement
+}
+
+collision_registry = {
+    "damage":DamageCollision
 }
