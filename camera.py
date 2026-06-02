@@ -27,8 +27,8 @@ class Camera:
 
         # 防止camera超出地图
 
-        self.x = max(0, min(self.x, self.map_pixel_width - SCREEN_WIDTH))
-        self.y = max(0, min(self.y, self.map_pixel_height - SCREEN_HEIGHT))
+        self.x = max(0, min(self.x, self.map_pixel_width - SCREEN_WIDTH ))
+        self.y = max(0, min(self.y, self.map_pixel_height - SCREEN_HEIGHT + CELL_HEIGHT * 3))
 
 
     def apply(self, world_pos):

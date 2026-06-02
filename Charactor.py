@@ -274,7 +274,7 @@ class Pawn(Entity):
 
 
 class Player(Pawn):
-    def __init__(self,scene,position=Vec2(8,1)):
+    def __init__(self,scene,position=Vec2(2,1)):
         super().__init__(scene,GroundMove(),position, health=50, sequence_limit=4)
         self.name="Player"
         self.actor_id = 0
@@ -304,14 +304,16 @@ class Player(Pawn):
         self.unlock_weapon("DEBUG")  # 初始武器
         self.unlock_weapon("Shotgun") 
         self.enabled_damage_decorators: set[str] = set() # 启用的伤害装饰器名称集合
-        self.idle_frames = [
-            load_image(f"arts/sprite/Character/hero-idle{i}.png", (32, 32))
-            for i in range(2)
-        ]
-        self.attack_frames = [
-            load_image(f"arts/sprite/Character/hero{i}.png", (32, 32))
-            for i in range(6)
-        ]
+        # self.idle_frames = [
+        #     load_image(f"arts/sprite/Character/hero-idle{i}.png", (32, 32))
+        #     for i in range(3)
+        # ]
+        # self.attack_frames = [
+        #     load_image(f"arts/sprite/Character/hero{i}.png", (32, 32))
+        #     for i in range(6)
+        # ]
+        self.idle_frames = load_animation("arts/sprite/Character","Hero", (32, 32))
+        self.attack_frames = load_animation("arts/sprite/Character","Hero-", (32, 32))
         self.state_machine.change(IdleState(self))
 
 
@@ -332,11 +334,7 @@ class Player(Pawn):
             print(f"武器名 {weapon_name} 不存在")
             return
 
-        # weapon_class = weapon_registry.get(weapon_name, Weapon)
-
         data = weapon_info[weapon_name]
-
-        # new_weapon = weapon_class(weapon_name, data)
         new_weapon = Weapon(weapon_name, data)
 
         self.weapons.append(new_weapon)
@@ -362,7 +360,8 @@ class Player(Pawn):
         return True
     
     def get_sprite(self):
-        return load_image("arts/sprite/Character/hero.png",(32,32))
+        # return load_image("arts/sprite/Character/hero.png",(32,32))
+        return self.idle_frames[0]
     
     
 class MonsterBlueprint:
@@ -380,13 +379,7 @@ class MonsterBlueprint:
         weapons = []
 
         for wid in self.weapon_ids:
-
-            # weapon_class = weapon_registry[wid]
-
-            # weapon = weapon_class(wid,weapon_info[wid])   # 创建实例
-
             weapon = Weapon(wid,weapon_info[wid])
-
             weapons.append(weapon)
 
         return weapons
@@ -401,6 +394,10 @@ class EnemyFactory:
         blueprint = MonsterBlueprint(monster_id)
         move_ability = FlyingMove() if blueprint.flying else GroundMove()  # ← factory 决定
         return Enemy(scene,blueprint, position,move_ability=move_ability)
+    
+    @staticmethod
+    def create_npc(scene,position, monster_id=None):
+        return Merchant(scene, position)
 
 
 class Enemy(Pawn):
@@ -425,23 +422,23 @@ class Enemy(Pawn):
         else:
             self.strategy = RangedMoveStrategy()
         self.state = AddWeaponState()  # 初始状态为试图添加武器攻击玩家
-        self.idle_frames = [load_image(f"arts/sprite/Character/{self.name}.png", (32, 32))]
-        self.attack_frames = [load_image(f"arts/sprite/Character/{self.name}.png", (32, 32))]
+        # self.idle_frames = [load_image(f"arts/sprite/Character/{self.name}0.png", (32, 32))]
+        # self.attack_frames = [load_image(f"arts/sprite/Character/{self.name}0.png", (32, 32))]
+        self.idle_frames = load_animation("arts/sprite/Character",self.name, (32, 32))
+        self.attack_frames = load_animation("arts/sprite/Character",self.name, (32, 32))
         self.state_machine.change(IdleState(self))
         
 
     def die(self):
-        """敌人死亡时的特殊逻辑"""
         super().die()  # 调用父类的 die() 处理基本死亡逻辑
-        # print(f"Enemy dropped loot!")  # 显示敌人掉落物品提示
-        # 这里可以增加掉落物品的逻辑
 
     def get_sprite(self):
         try:
-            return load_image(f"arts/sprite/Character/{self.name}.png",(32,32)) 
+            # return SpriteManager.get(f"arts/sprite/Character/{self.name}.png")
+            return self.idle_frames[0]
         except FileNotFoundError:
             print("using default enemy img")
-            return load_image("arts/sprite/Character/enemy.png")
+            return SpriteManager.get(f"arts/sprite/Character/enemy.png")
 
     def execute_intent(self, scene):
         """逐回合执行当前意图"""
@@ -501,20 +498,8 @@ class Enemy(Pawn):
     
     def can_hit_player(self, player, scene):#临时的方案
         """检查当前方向 & 攻击模式能否命中玩家"""
-        # if player:
-        #     distance = abs(self.position - player.position)
-        #     if self.is_facing_player(player):
-        #         if self.type == "melee":
-        #             return distance <= 1
-        #         elif self.type == "range":
-        #             if scene.can_see_line(self,player):
-        #                 print(f"Weapon Range:{self.weapons[0].range}, :{self.weapons[self.action_sequence[0]].range}")
-        #                 if self.weapons[self.action_sequence[0]].range!=None:
-        #                     return distance <= self.weapons[self.action_sequence[0]].range
-        #                 else :
-        #                     return distance <= 1
         distance = scene.mdis(player.position,self.position)
-        if distance<=2 :
+        if distance<=3 :
             return True
         return False
 
@@ -527,6 +512,44 @@ class EnemyState:
     
     def get_intent_symbols(self, enemy) -> list[str]:
         return []
+
+class Merchant(Enemy):
+    def __init__(self, scene, position=Vec2(3,3)):
+        blueprint = MonsterBlueprint("Merchant")  
+        blueprint.health = 20  # Merchant血量
+        super().__init__(scene, blueprint, position, move_ability=GroundMove())
+
+        self.name = "Merchant"
+        self.faction = "neutral"  # 可自定义阵营
+        self.shop = ShopComponent()  # 交易组件
+        self.dialogue = DialogueComponent()
+        self.strategy = MeleeMoveStrategy()  # Merchant不会主动追玩家
+
+    def update(self,dt):
+        pass
+
+class ShopComponent:
+    def __init__(self):
+        self.inventory = {"Movement Tutorial": 3, "Combat Tutorial": 5}
+
+    def buy(self, player, item_name):
+        cost = self.inventory.get(item_name, None)
+        if cost is None:
+            return False, "Item not found"
+        if player.skill_points["tech"] < cost:
+            return False, "Not enough tech points"
+        player.skill_points["tech"] -= cost
+        return True, f"Purchased {item_name}"
+    
+class DialogueComponent():
+    def __init__(self):
+        pass
+    def speak(self,screen):
+                # 信息面板背景
+        info_rect = pygame.Rect(10, 10, 100, 50)
+        pygame.draw.rect(screen, BLACK, info_rect)
+        pygame.draw.rect(screen, WHITE, info_rect, 1)
+
 
 from enum import Enum
 
@@ -698,13 +721,24 @@ MONSTER_LIBRARY = {
     },
 
     "Bat":{
-        "name": "BAT",
+        "name": "Bat",
         "health": 2,
         "type": "keep",
         "flying": True,
         "weapons": ["MultiShoot"],
         "intents": [
             ["MultiShoot"]
+        ]
+    },
+
+    "Merchant":{
+        "name": "Merchant",
+        "health": 20,
+        "type": "keep",
+        "flying": False,
+        "weapons": [],
+        "intents": [
+            []
         ]
     },
 }

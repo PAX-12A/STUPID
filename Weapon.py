@@ -111,23 +111,47 @@ def build_dash_attack(weapon, scene, actor):
 
     return [SequenceAction(actor, sequence())]
 
+# def build_roll_attack(weapon, scene, actor):
+
+#     def sequence():
+
+#         closest_enemy = scene.get_roll_pawn(actor.position,actor.direction)
+
+#         if not closest_enemy:
+#             yield MoveAction(actor,Vec2(actor.direction, 0))
+#             return
+
+#         target_x = (closest_enemy.position.x + actor.direction)
+
+#         offset = Vec2(target_x - actor.position.x ,0)
+
+#         yield MoveAction(actor, offset)
+
+#         attack_positions = weapon.get_attack_positions(actor)
+
+#         yield AttackAction(actor,weapon,attack_positions,weapon.damage)
+
+#     return [SequenceAction(actor, sequence())]
+
 def build_roll_attack(weapon, scene, actor):
 
     def sequence():
 
-        closest_enemy = scene.get_closestL_pawn(actor.position,actor.direction)
+        targets = scene.get_roll_pawns(actor.position,actor.direction)
 
-        if not closest_enemy:
-            yield MoveAction(actor,Vec2(actor.direction, 0))
+        if not targets:
+            yield MoveAction(actor,Vec2(actor.direction,0))
             return
 
-        target_x = (closest_enemy.position.x + actor.direction)
+        last_target = targets[-1]
 
-        offset = Vec2(target_x - actor.position.x ,0)
+        target_x = (last_target.position.x+ actor.direction)
+
+        offset = Vec2(target_x - actor.position.x,0)
 
         yield MoveAction(actor, offset)
 
-        attack_positions = weapon.get_attack_positions(actor)
+        attack_positions = [pawn.position for pawn in targets]
 
         yield AttackAction(actor,weapon,attack_positions,weapon.damage)
 

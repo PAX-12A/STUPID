@@ -38,7 +38,7 @@ class State:
 class IdleState(State):
 
     def enter(self):
-        self.anim = FrameAnimation(self.pawn.idle_frames, 0.5 ,loop=True)
+        self.anim = FrameAnimation(self.pawn.idle_frames, 0.2 ,loop=True)
         self.pawn.anim.play(self.anim)
 
     def update(self, dt):

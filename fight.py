@@ -39,8 +39,9 @@ class FightScene:
         ]
         
         # 生成一个随机关卡
-        self.player = Player(self, Vec2(8, 1))
+        self.player = Player(self)#在prepare_level中初始化位置
         self.enemies = []
+        self.projectiles = []
         self.prepare_level()
         # print(self.player.position)
 
@@ -67,10 +68,8 @@ class FightScene:
         self.timeline = []
         self.ui_input = UIInputSystem(self)
         self.gameplay_input = GameplayInputSystem(self)
-        self.projectiles = []
 
         self.input_locked = False
-        self.spritemanager = SpriteManager()
 
         self.mouse_pos = (0, 0)
 
@@ -79,8 +78,8 @@ class FightScene:
         self.mymap = Map(GRID_WIDTH, GRID_HEIGHT, self.camera)
         self.mymap.generate_map()
 
-        self.player.position = Vec2(8, 1)
-        self.player.render_pos = Vec2(8.0, 1.0)
+        self.player.position = Vec2(1, 2)
+        self.player.render_pos = Vec2(1.0, 2.0)
         # self.mymap.occupy(Vec2(0, 8), self.player)   # ← player 也登记
 
         self.spawn_enemy()
@@ -165,7 +164,7 @@ class FightScene:
     def can_spawn(self, pos, flying=False):
         if flying:
             return self.mymap.is_flyable(pos)
-        return self.mymap.is_walkable(pos)
+        return self.mymap.is_walkable(pos) and not self.get_pawn_at(pos)
     
     def get_occupied_pos(self):
 
@@ -307,38 +306,39 @@ class FightScene:
                 return pawn
             i+=direction
         return None
+    
+    def get_roll_pawns(self, pos, direction):
+
+        first = self.get_closestL_pawn(pos, direction)
+
+        if not first:
+            return []
+
+        pawns = [first]
+
+        x = first.position.x + direction
+
+        while 0 < x < GRID_WIDTH - 1:
+
+            pawn = self.get_pawn_at(
+                Vec2(x, first.position.y)
+            )
+
+            if pawn is None:
+                break
+
+            pawns.append(pawn)
+
+            x += direction
+
+        return pawns
 
     def get_legal_position(self, postion):
         return max(0, min(self.grid_size - 1, postion))
 
-    # def get_adjusted_attack_positions(self, weapon, actor):
-    #     adjusted_positions = []
-    #     for offset in weapon.pattern:
-    #         actual_offset = offset * actor.direction  # 左右翻转
-    #         target_pos = actor.position + actual_offset
-    #         # if 0 <= target_pos.x < GRID_WIDTH & 0 <= target_pos.y < GRID_HEIGHT:
-    #         adjusted_positions.append(target_pos)
-    #     print(f"{actor.name}攻击方向: {actor.direction}, 攻击格子: {adjusted_positions}")
-    #     return adjusted_positions
-    
     def get_occupied_positions(self):
         return {enemy.position for enemy in self.enemies}
     
-
-    
-    # def spawn_enemy(self):
-
-    #     pos = self.get_random_spawn_pos()
-
-    #     if pos is None:
-    #         return
-
-    #     enemy = self.create_random_enemy(pos)
-
-    #     enemy.on_move_check = self.handle_move
-
-    #     self.enemies.append(enemy)
-
     def spawn_enemy(self):
         flying_ids = [k for k, v in MONSTER_LIBRARY.items() if v.get("flying")]
         ground_ids  = [k for k, v in MONSTER_LIBRARY.items() if not v.get("flying")]
@@ -347,16 +347,21 @@ class FightScene:
         for _ in range(12):
             pos = self.get_random_spawn_pos(flying=False)
             if pos:
-                enemy = self.create_random_enemy(pos, monster_id=random.choice(ground_ids))
+                enemy = self.create_enemy(pos, monster_id=random.choice(ground_ids))
                 self.enemies.append(enemy)
                 self.mymap.occupy(pos, enemy)
 
         for _ in range(10):
             pos = self.get_random_spawn_pos(flying=True)
             if pos:
-                enemy = self.create_random_enemy(pos, monster_id=random.choice(flying_ids))
+                enemy = self.create_enemy(pos, monster_id=random.choice(flying_ids))
                 self.enemies.append(enemy)
                 self.mymap.occupy(pos, enemy)
+
+        merchant = EnemyFactory.create_npc(self,Vec2(3,2), monster_id="Merchant")
+        self.enemies.append(merchant)
+
+        
 
     def get_random_spawn_pos(self, flying=False):
         for _ in range(50):
@@ -367,9 +372,9 @@ class FightScene:
                 return pos
         return None
 
-    def create_random_enemy(self , position, monster_id=None):
+    def create_enemy(self , position, monster_id=None):
         """从图纸库中生成敌人。"""
-        enemy = EnemyFactory.create(self,position)
+        enemy = EnemyFactory.create(self,position,monster_id)
         return enemy
     
     def save_timeline(self):
@@ -488,7 +493,7 @@ class FightScene:
     def draw_hero_overlay(self, screen, pawn: Player,pos):
         line = "*" * pawn.swap_cooldown
         cooldown_surface = self.font.render(line, True, GREEN)
-        screen.blit(cooldown_surface, pos)
+        screen.blit(cooldown_surface, pos )
 
     def draw_enemy_overlay(self, screen, pawn: Enemy,pos):
         self.draw_intents(screen, pawn, pos)

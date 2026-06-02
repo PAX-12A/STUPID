@@ -186,7 +186,6 @@ class IntroState(GameState):
         surface.blit(self.overlay, (img_x, img_y))
         
         # 3. 绘制底部提示语
-        # 这里统一使用 app 的 font_en（也可以换成 font_ch）
         prompt_surf = self.app.font_en.render("Press ENTER / CLICK to continue...", True, GREEN)
         surface.blit(prompt_surf, (20, self.app.base_size[1] - 30))
         

@@ -157,10 +157,7 @@ class ScanDeathAnimation:
                 self.block_size
             )
 
-            frame.fill(
-                (0, 0, 0, 0),
-                rect
-            )
+            frame.fill((0, 0, 0, 0),rect)
 
         return frame
     

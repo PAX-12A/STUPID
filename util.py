@@ -127,13 +127,32 @@ class SpriteManager:
     cache = {}
 
     @classmethod
-    def get(cls, name ,size = (32,32)):
+    def get(cls, path, size=(32,32)):
 
-        if name not in cls.cache:
+        key = (path, size)
 
-            cls.cache[name] = load_image(
-                f"arts/sprite/Projectile/{name}.png",
-                size
-            )
+        if key not in cls.cache:
+            cls.cache[key] = load_image(path, size)
 
-        return cls.cache[name]
+        return cls.cache[key]
+    
+def load_animation(folder, prefix, size):
+    frames = []
+
+    i = 0
+
+    while True:
+        path = f"{folder}/{prefix}{i}.png"
+
+        if not os.path.exists(path):
+            break
+
+        frames.append(
+            SpriteManager.get(path, size)
+        )
+
+        i += 1
+    # print(path)    
+    # print(i)
+
+    return frames

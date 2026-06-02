@@ -248,12 +248,6 @@ class SequenceAction(Action):
         if self.finished:
             return
         
-        # print(
-        #     "Sequence current:",
-        #     type(self.current_action).__name__,
-        #     self.current_action.is_finished()
-        # )
-
         self.current_action.update(scene, dt)
 
         if self.current_action.is_finished():

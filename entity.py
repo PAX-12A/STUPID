@@ -29,7 +29,7 @@ class Projectile(Entity):
         self.health = health 
         self.name = projectile_type
         self.speed = speed
-        self.sprite = scene.spritemanager.get(self.projectile_type)
+        self.sprite = SpriteManager.get(f"arts/sprite/Projectile/{self.projectile_type}.png")
         self.alive = True
 
     def update(self):

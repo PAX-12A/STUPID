@@ -49,6 +49,7 @@ class Map:
     def generate_map(self):
 
         self.init_random()
+        self.init_manually()
         # self.run_cellular_automata()
 
         start = (1, self.height // 2)
@@ -96,6 +97,16 @@ class Map:
                     row.append(WALL if make_wall else VOID)
 
             self.terrain.append(row)
+
+    def init_manually(self):
+        for y in range(1,3):
+
+            for x in range(int(self.width/2)):
+                self.terrain[y][x] = VOID
+
+        for x in range(int(self.width/2)-1):
+            self.terrain[3][x] = WALL
+
 
     # =========================
     # Cellular Automata
